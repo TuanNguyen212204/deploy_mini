@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Query, Body } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { BulkCreateProductDto } from './dto/bulk-create-product.dto';
+import { SearchProductDto } from './dto/search-product.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BadRequestException } from '@nestjs/common';
 
@@ -30,8 +31,8 @@ export class ProductsController {
 
   //TÌM KIẾM SẢN PHẨM 
   @Get('search')
-  @ApiOperation({ summary: 'Tìm kiếm sản phẩm (từ khóa hoặc dán link)' })
-  async search(@Query('keyword') keyword: string) {
-    return this.productsService.searchProducts(keyword);
+  @ApiOperation({ summary: 'Tìm kiếm, lọc và sắp xếp sản phẩm' })
+  async search(@Query() filter: SearchProductDto) {
+    return this.productsService.searchProducts(filter);
   }
 }

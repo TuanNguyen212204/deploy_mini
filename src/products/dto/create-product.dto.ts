@@ -23,6 +23,6 @@ export class CreateProductDto {
   // @IsOptional()
   // originalPrice?: number;
 
-  // @IsOptional()
-  // metadata?: any;                  // rating, shippingFee, etc.
+  @IsOptional()
+  metadata?: any;                  // rating, shippingFee, etc.
 }

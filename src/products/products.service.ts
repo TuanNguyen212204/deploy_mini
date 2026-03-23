@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
+import { SearchProductDto, SortBy, SortOrder } from './dto/search-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -13,18 +14,18 @@ export class ProductsService {
 
  //INGESTION API 
 async upsertBulk(products: CreateProductDto[]): Promise<void> {
-  console.log(`🔄 Đang xử lý ${products.length} sản phẩm...`);
+  console.log(` Đang xử lý ${products.length} sản phẩm...`);
 
   for (const dto of products) {
     try {
-      // Tìm theo url (unique key)
+      // Tìm theo url 
       let existing = await this.productRepository.findOne({ where: { url: dto.url } });
 
       if (existing) {
         existing.currentPrice = dto.currentPrice;
         //existing.originalPrice = dto.originalPrice ?? existing.originalPrice;
         existing.imageUrl = dto.imageUrl ?? existing.imageUrl;
-        //existing.metadata = dto.metadata ?? existing.metadata;
+        existing.metadata = dto.metadata ?? existing.metadata;
         existing.platform = dto.platform;
         existing.updatedAt = new Date();  
 
@@ -41,26 +42,54 @@ async upsertBulk(products: CreateProductDto[]): Promise<void> {
     }
   }
 }
-  // TÌM KIẾM SẢN PHẨM 
-  async searchProducts(keyword: string): Promise<Product[]> {
-    if (!keyword) {
-      return this.productRepository.find({
-        take: 20,
-        order: { createdAt: 'DESC' },
-      });
+  async searchProducts(filter: SearchProductDto) {
+    const { 
+      keyword, 
+      platform, 
+      minPrice, 
+      maxPrice, 
+      sortBy = 'currentPrice', 
+      sortOrder = 'ASC', 
+      page = 1, 
+      limit = 20 
+    } = filter;
+
+    const query = this.productRepository.createQueryBuilder('product');
+
+
+    if (keyword) {
+      if (keyword.startsWith('http')) {
+        query.andWhere('product.url = :url', { url: keyword });
+      } else {
+        query.andWhere('product.name ILIKE :keyword', { keyword: `%${keyword}%` });
+      }
     }
-    // Nếu người dùng dán LINK → tìm chính xác theo url
-    if (keyword.startsWith('http')) {
-      return this.productRepository.find({
-        where: { url: keyword },
-        take: 1,
-      });
+
+    if (platform) {
+      query.andWhere('product.platform = :platform', { platform });
     }
-    // Tìm theo tên 
-    return this.productRepository.find({
-      where: { name: ILike(`%${keyword}%`) },
-      take: 30,
-      order: { currentPrice: 'ASC' },
-    });
+    if (minPrice) {
+      query.andWhere('product.currentPrice >= :minPrice', { minPrice });
+    }
+    if (maxPrice) {
+      query.andWhere('product.currentPrice <= :maxPrice', { maxPrice });
+    }
+
+    query.orderBy(`product.${sortBy}`, sortOrder);
+
+    const skip = (page - 1) * limit;
+    query.skip(skip).take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      meta: {
+        total, 
+        currentPage: page, 
+        totalPages: Math.ceil(total / limit), 
+        itemsPerPage: limit, 
+      },
+    };
   }
 }
