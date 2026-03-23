@@ -20,11 +20,11 @@ import {
     id: number;
 
   
-    // 2. Tên sản phẩm (Cột này sẽ dùng để làm chức năng TÌM KIẾM)
+    // 2. Tên sản phẩm 
     @Column({ type: 'varchar', length: 255 })
     name: string; 
   
-    // 3. Link gốc của sản phẩm (Dùng để định danh, không cho phép 2 sản phẩm trùng link)
+    // 3. Link gốc của sản phẩm 
     @Column({ type: 'text', unique: true })
     url: string; 
   
@@ -32,7 +32,7 @@ import {
     @Column({ type: 'text', nullable: true })
     imageUrl: string; 
   
-    // 5. Giá hiện tại (Phục vụ hiển thị ngay lập tức)
+    // 5. Giá hiện tại 
     @Column({ type: 'int', default: 0 })
     currentPrice: number; 
   
