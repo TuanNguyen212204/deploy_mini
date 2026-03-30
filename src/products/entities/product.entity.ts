@@ -7,7 +7,7 @@ import {
     Index 
   } from 'typeorm';
   
-  // Khai báo các sàn được phép (Tránh nhập sai chính tả)
+  // Khai báo các sàn được phép 
   export enum PlatformType {
     SHOPEE = 'Shopee',
     LAZADA = 'Lazada',
