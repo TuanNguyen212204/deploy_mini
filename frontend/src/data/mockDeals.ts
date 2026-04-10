@@ -1,0 +1,83 @@
+import type { Deal, DealSection } from '../types/deal';
+
+export const mockDeals: Deal[] = [
+  {
+    id: 'deal-1',
+    productId: 1,
+    type: 'trending',
+    title: 'Top deal tai nghe hôm nay',
+    subtitle: 'Giá thấp nhất 90 ngày',
+    discountPercent: 18,
+    currentPrice: 6990000,
+    previousPrice: 8490000,
+    score: 95,
+    createdAt: '2026-04-10T09:20:00Z',
+  },
+  {
+    id: 'deal-2',
+    productId: 2,
+    type: 'real-discount',
+    title: 'Deal thật mỹ phẩm',
+    subtitle: 'Thấp hơn trung bình 30 ngày 11%',
+    discountPercent: 21,
+    currentPrice: 489000,
+    previousPrice: 620000,
+    score: 93,
+    createdAt: '2026-04-10T09:21:00Z',
+  },
+  {
+    id: 'deal-3',
+    productId: 3,
+    type: 'suspicious-discount',
+    title: 'Giảm sâu nhưng cần kiểm tra',
+    subtitle: 'Có dấu hiệu tăng giá trước sale',
+    discountPercent: 43,
+    currentPrice: 3990000,
+    previousPrice: 6990000,
+    score: 72,
+    createdAt: '2026-04-10T09:15:00Z',
+  },
+  {
+    id: 'deal-4',
+    productId: 2,
+    type: 'near-historic-low',
+    title: 'Sắp chạm đáy lịch sử',
+    subtitle: 'Giá rất sát mức thấp nhất 90 ngày',
+    discountPercent: 21,
+    currentPrice: 489000,
+    previousPrice: 620000,
+    score: 90,
+    createdAt: '2026-04-10T09:21:00Z',
+  },
+];
+
+export const mockDealSections: DealSection[] = [
+  {
+    id: 'section-1',
+    title: 'Trending deals hôm nay',
+    subtitle: 'Các deal đang được quan tâm nhiều nhất',
+    type: 'trending',
+    dealIds: ['deal-1'],
+  },
+  {
+    id: 'section-2',
+    title: 'Deal thật sự',
+    subtitle: 'Giảm giá tốt so với lịch sử',
+    type: 'real-discount',
+    dealIds: ['deal-2'],
+  },
+  {
+    id: 'section-3',
+    title: 'Deal nghi ảo',
+    subtitle: 'Cần cân nhắc trước khi mua',
+    type: 'suspicious-discount',
+    dealIds: ['deal-3'],
+  },
+  {
+    id: 'section-4',
+    title: 'Sắp chạm đáy lịch sử',
+    subtitle: 'Có thể mua ngay hoặc đặt alert',
+    type: 'near-historic-low',
+    dealIds: ['deal-4'],
+  },
+];

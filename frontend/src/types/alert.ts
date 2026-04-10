@@ -1,0 +1,16 @@
+import type { Platform } from './product';
+
+export type AlertChannel = 'email' | 'push' | 'zalo';
+export type AlertStatus = 'active' | 'paused' | 'triggered';
+
+export type Alert = {
+  id: string;
+  productId: number;
+  targetPrice: number;
+  platform?: Platform | 'all';
+  channel: AlertChannel;
+  status: AlertStatus;
+  lastTriggeredAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
