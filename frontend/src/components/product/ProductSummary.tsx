@@ -3,6 +3,7 @@ import { Bell, Heart, MoveUpRight } from 'lucide-react';
 import Badge from '../common/Badge';
 import PlatformPill from '../common/PlatformPill';
 import type { Product } from '../../types/product';
+import { useWishlist } from '../../context/WishlistContext';
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -22,6 +23,16 @@ const formatPrice = (price: number): string =>
   }).format(price);
 
 export default function ProductSummary({ product }: ProductSummaryProps) {
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const isFavorite = isInWishlist(product.id);
+
+  const handleToggleWishlist = () => {
+    if (isFavorite) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product);
+    }
+  };
   const bestOffer = [...product.platforms].sort(
     (a, b) => a.finalPrice - b.finalPrice,
   )[0];
@@ -120,10 +131,19 @@ export default function ProductSummary({ product }: ProductSummaryProps) {
 
         <button
           type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-stone-200 bg-white px-5 py-4 text-sm font-medium text-stone-700 transition hover:text-[#8E6A72]"
+          onClick={handleToggleWishlist}
+          className={`inline-flex items-center justify-center gap-2 rounded-full border px-5 py-4 text-sm font-medium transition-all duration-300 ${
+            isFavorite 
+              ? 'bg-[#F8F1F3] border-[#8E6A72] text-[#8E6A72]' 
+              : 'border-stone-200 bg-white text-stone-700 hover:text-[#8E6A72]'
+          }`}
         >
-          <Heart size={16} />
-          Lưu wishlist
+          <Heart 
+            size={16} 
+            fill={isFavorite ? "currentColor" : "none"} 
+            className={isFavorite ? "animate-pulse" : ""}
+          />
+          {isFavorite ? "Đã lưu" : "Lưu wishlist"}
         </button>
       </div>
 

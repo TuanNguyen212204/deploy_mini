@@ -1,7 +1,9 @@
-import { Heart } from 'lucide-react';
+import React from 'react';
+import { Heart, Trash2 } from 'lucide-react'; // Thêm Trash2
 import { Link } from 'react-router-dom';
 import Badge from '../common/Badge';
 import type { Product } from '../../types/product';
+import { useWishlist } from '../../context/WishlistContext'; // Import context
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -9,8 +11,10 @@ const FONT_STACK = {
     'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 } as const;
 
+// THÊM: prop isWishlistPage để linh hoạt hiển thị nút
 type ProductCardProps = {
   product: Product;
+  isWishlistPage?: boolean; 
 };
 
 const formatPrice = (price: number): string =>
@@ -20,10 +24,26 @@ const formatPrice = (price: number): string =>
     maximumFractionDigits: 0,
   }).format(price);
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, isWishlistPage = false }: ProductCardProps) {
+  // Lấy các hàm logic từ Context
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const isFavorite = isInWishlist(product.id);
+
   const bestOffer = [...product.platforms].sort(
     (a, b) => a.finalPrice - b.finalPrice,
   )[0];
+
+  // Xử lý click nút (ngăn chặn nổi bọt sự kiện để không bị nhảy vào trang chi tiết)
+  const handleWishlistAction = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isWishlistPage || isFavorite) {
+      removeFromWishlist(product.id);
+    } else {
+      addToWishlist(product);
+    }
+  };
 
   return (
     <Link to={`/product/${product.id}`} className="group block">
@@ -37,13 +57,20 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/0 to-white/10" />
 
+          {/* SỬA: Nút tương tác linh hoạt */}
           <button
             type="button"
-            onClick={(e) => e.preventDefault()}
-            className="absolute right-4 top-4 rounded-full border border-white/40 bg-white/70 p-2.5 text-stone-500 shadow-[0_8px_20px_rgba(15,23,42,0.08)] backdrop-blur-md transition-all duration-300 hover:scale-[1.04] hover:text-[#8E6A72]"
-            aria-label="Lưu sản phẩm"
+            onClick={handleWishlistAction}
+            className={`absolute right-4 top-4 rounded-full border border-white/40 bg-white/70 p-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.08)] backdrop-blur-md transition-all duration-300 hover:scale-[1.04] ${
+              isFavorite ? 'text-[#8E6A72]' : 'text-stone-500'
+            }`}
+            aria-label={isWishlistPage ? "Xóa khỏi danh sách" : "Lưu sản phẩm"}
           >
-            <Heart size={15} />
+            {isWishlistPage ? (
+              <Trash2 size={15} className="hover:text-red-500" />
+            ) : (
+              <Heart size={15} fill={isFavorite ? "currentColor" : "none"} />
+            )}
           </button>
         </div>
 
@@ -85,7 +112,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
           </div>
 
-          <p className="mt-4 text-sm leading-7 text-stone-500">
+          <p className="mt-4 text-sm leading-7 text-stone-500 line-clamp-2">
             {product.insight.summary}
           </p>
         </div>
