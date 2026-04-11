@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import ProductCompareCard from '../components/product/ProductCompareCard';
+import TrendingDealsSection from '../components/deals/TrendingDealsSection';
 import { mockDeals, mockDealSections } from '../data/mockDeals';
 import { mockProducts } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
@@ -139,7 +140,9 @@ export default function DealsPage() {
 
      <AppHeader currentPage="deals" />
 
-<main className="mx-auto max-w-7xl px-6 pb-20 pt-36 lg:px-12">        
+<main className="mx-auto max-w-7xl px-6 pb-20 pt-36 lg:px-12">
+        <TrendingDealsSection />
+
         <section className="mb-10">
           <div className="max-w-3xl">
             

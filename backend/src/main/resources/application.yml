@@ -1,1 +1,26 @@
-spring.application.name=backend
+spring:
+  datasource:
+    # URL này dành cho chế độ Connection Pooler (Transaction) của Supabase
+    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?prepareThreshold=0
+    username: postgres.astkanfsacxriwprspqr
+    password: PriceHawl123@
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # Đổi thành update để Hibernate tự tạo bảng khớp với các file Entity bạn đã viết
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        # Cấu hình bắt buộc khi kết nối qua cổng 6543 của Supabase
+        jdbc.lob.non_contextual_creation: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: false
+  port: 8080
+
+# Tạo 2 listing demo + 8 mức giá/listing cho API trending (tắt trên production: false)
+app:
+  seed-trending-demo: true

@@ -1,4 +1,100 @@
 import type { Deal, DealSection } from '../types/deal';
+import type { PlatformPrice, Product } from '../types/product';
+import type { TrendingDealDto } from '../types/trendingDeal';
+import { mockProducts } from './mockProducts';
+
+function productById(id: number): Product {
+  const p = mockProducts.find((x) => x.id === id);
+  if (!p) throw new Error(`mockProducts thiếu id ${id}`);
+  return p;
+}
+
+/** Một listing / nền tảng — dealScore vẫn gồm popularity & freshness (ẩn trên UI). */
+function listingFromPlatform(
+  product: Product,
+  platform: PlatformPrice,
+  listingId: string,
+  productBadge: string,
+  productPinned: boolean,
+): TrendingDealDto {
+  const org = platform.originalPrice;
+  const fin = platform.finalPrice;
+  const discountScore =
+    org > 0 ? Math.min(1, Math.max(0, (org - fin) / org)) : 0;
+  const trendScore = product.insight.isLowest90Days
+    ? 0.88
+    : product.insight.isLowest30Days
+      ? 0.72
+      : 0.45;
+  const trustScore = platform.isOfficial ? 0.9 : 0.58;
+  const popularityScore = Math.min(1, platform.soldCount / 10000);
+  const freshnessScore = 0.94;
+  const dealScore =
+    0.45 * discountScore +
+    0.25 * trendScore +
+    0.15 * trustScore +
+    0.1 * popularityScore +
+    0.05 * freshnessScore;
+  const discountPercent = org > 0 ? ((org - fin) / org) * 100 : 0;
+  const pinned =
+    productPinned &&
+    platform.isOfficial &&
+    platform.platform === 'Shopee';
+
+  return {
+    listingId,
+    productId: String(product.id),
+    variantKey: product.model,
+    category: product.category,
+    productName: product.name,
+    imageUrl: product.images[0] ?? null,
+    platformName: `${platform.platform} · ${platform.shopName}`,
+    currentPrice: fin,
+    originalPrice: org,
+    discountPercent,
+    dealScore,
+    badge: productBadge,
+    explanation: product.insight.summary,
+    pinned,
+    discountScore,
+    trendScore,
+    trustScore,
+    popularityScore,
+    freshnessScore,
+  };
+}
+
+const TRENDING_PRODUCT_META: Record<
+  number,
+  { badge: string; pinned: boolean }
+> = {
+  1: { badge: 'HOT', pinned: false },
+  2: { badge: 'PINNED', pinned: true },
+  3: { badge: 'DEAL', pinned: false },
+};
+
+/** Ứng viên thô: mọi sàn — logic nhóm / xếp hạng ở `prepareTrendingDealGroups` */
+export function buildMockTrendingDealCandidates(): TrendingDealDto[] {
+  const out: TrendingDealDto[] = [];
+  for (const id of [1, 2, 3] as const) {
+    const p = productById(id);
+    const m = TRENDING_PRODUCT_META[id];
+    p.platforms.forEach((pf, i) => {
+      out.push(
+        listingFromPlatform(
+          p,
+          pf,
+          `trending-${id}-plat-${i}`,
+          m.badge,
+          m.pinned,
+        ),
+      );
+    });
+  }
+  return out;
+}
+
+export const mockTrendingDealCandidates = buildMockTrendingDealCandidates();
 
 export const mockDeals: Deal[] = [
   {

@@ -1,0 +1,16 @@
+# Sao chép file này thành: src/main/resources/application-local.yml
+# (application-local.yml đã nằm trong .gitignore — không commit.)
+#
+# Trong Supabase: Project Settings → Database → mở "Connection string" → chọn JDBC,
+# copy URI và username/password đúng với loại kết nối (Direct / Session pooler / Transaction).
+#
+# Nếu gặp UnknownHostException với db.<project-ref>.supabase.co:
+# - Thử "Session pooler" (host dạng *.pooler.supabase.com, port 6543, user postgres.<project-ref>).
+# - Hoặc đổi DNS máy (ví dụ 8.8.8.8) / kiểm tra VPN.
+# - Một số mạng chỉ resolve IPv6: có thể thêm VM option: -Djava.net.preferIPv6Addresses=true
+#
+spring:
+  datasource:
+    url: jdbc:postgresql://PASTE_HOST_FROM_SUPABASE:5432/postgres?sslmode=require
+    username: postgres
+    password: PASTE_DATABASE_PASSWORD
