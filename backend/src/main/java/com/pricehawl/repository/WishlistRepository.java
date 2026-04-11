@@ -1,6 +1,6 @@
-package com.example.backend.repository;
+package com.pricehawl.repository;
 
-import com.example.backend.entity.Wishlist;
+import com.pricehawl.entity.Wishlist;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.UUID;
