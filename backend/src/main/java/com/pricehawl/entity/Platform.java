@@ -10,19 +10,20 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class Platform {
-    
+
     @Id
     private Integer id;
-    
+
     @Column(nullable = false, length = 100)
     private String name;
-    
+
     @Column(length = 255)
     private String baseUrl;
-    
+
     @Column(length = 500)
     private String logoUrl;
-    
+
     @Column(nullable = false)
+    @Builder.Default
     private Boolean isActive = true;
 }
