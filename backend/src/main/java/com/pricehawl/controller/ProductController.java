@@ -10,13 +10,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-
 @RestController
 @RequestMapping("/products")
 public class ProductController {
 
-    @Autowired
-    private ProductService service;
+    private final ProductService service;
+
+    public ProductController(ProductService service) {
+        this.service = service;
+    }
 
     @GetMapping("/search")
     public List<ProductSearchDTO> search(@RequestParam("q") String keyword) {
