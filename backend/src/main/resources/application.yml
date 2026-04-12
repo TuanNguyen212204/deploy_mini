@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:postgresql://db.astkanfsacxriwprspqr.supabase.co:5432/postgres
     username: postgres
-    password: "YOUR_PASSWORD_HERE"
+    password: "PriceHawl123@"
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -20,3 +20,16 @@ spring:
 
 server:
   port: 8080
+
+logging:
+  level:
+    root: DEBUG
+  file:
+    name: logs/app.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
