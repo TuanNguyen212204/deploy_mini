@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Bell, Search } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import {  Search } from 'lucide-react';
+import {  useSearchParams } from 'react-router-dom';
 import ProductCompareCard from '../components/product/ProductCompareCard';
 import { mockProducts } from '../data/mockProducts';
 import type { Product, Platform } from '../types/product';

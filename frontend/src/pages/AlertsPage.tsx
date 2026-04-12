@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import  { useMemo, useState } from 'react';
 import { PauseCircle, Pencil, Trash2 } from 'lucide-react';
 import Badge from '../components/common/Badge';
 import PlatformPill from '../components/common/PlatformPill';
