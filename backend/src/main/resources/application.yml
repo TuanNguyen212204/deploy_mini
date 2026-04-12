@@ -21,6 +21,8 @@ spring:
     enabled: false
   port: 8080
 
-# Tạo 2 listing demo + 8 mức giá/listing cho API trending (tắt trên production: false)
-app:
-  seed-trending-demo: true
+  cache:
+    type: caffeine
+    cache-names: trendingDeals
+    caffeine:
+      spec: maximumSize=50,expireAfterWrite=2h

@@ -57,7 +57,7 @@ export function prepareTrendingDealGroups(
 
   const groups: TrendingDealGroup[] = []
 
-  for (const [key, rows] of byKey) {
+  for (const [, rows] of byKey) {
     const sortedTrust = [...rows].sort(compareTrustThenPrice)
     const primary = sortedTrust[0]!
     const alternates = sortedTrust.slice(1).sort(compareAlternateRank).map((row) => ({
@@ -67,7 +67,7 @@ export function prepareTrendingDealGroups(
     }))
 
     groups.push({
-      groupKey: key,
+      groupKey: groupKeyOf(primary),
       primary,
       alternates,
     })

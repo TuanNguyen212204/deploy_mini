@@ -1,3 +1,10 @@
+/** Meta AC-07 từ header HTTP (Spring Boot) */
+export type TrendingDealsApiMeta = {
+  computedAt: string
+  nextRefreshAfter: string
+  cacheTtlSeconds: number
+}
+
 /** Khớp JSON từ GET /api/trending-deals (Spring Boot + Jackson) */
 export type TrendingDealDto = {
   listingId: string

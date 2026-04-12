@@ -1,15 +1,19 @@
-import type { Deal, DealSection } from '../types/deal';
-import type { PlatformPrice, Product } from '../types/product';
-import type { TrendingDealDto } from '../types/trendingDeal';
-import { mockProducts } from './mockProducts';
+/**
+ * Mock deal cards / sections + mock listing trending (fallback khi API lỗi / VITE_USE_TRENDING_API=false).
+ */
+import type { Deal, DealSection } from '../types/deal'
+import type { PlatformPrice, Product } from '../types/product'
+import type { TrendingDealDto } from '../types/trendingDeal'
+import { mockProducts } from './mockProducts'
 
-function productById(id: number): Product {
-  const p = mockProducts.find((x) => x.id === id);
-  if (!p) throw new Error(`mockProducts thiếu id ${id}`);
-  return p;
+/* ——— Trending listing mock ——— */
+
+function trendingProductById(id: number): Product {
+  const p = mockProducts.find((x) => x.id === id)
+  if (!p) throw new Error(`mockProducts thiếu id ${id}`)
+  return p
 }
 
-/** Một listing / nền tảng — dealScore vẫn gồm popularity & freshness (ẩn trên UI). */
 function listingFromPlatform(
   product: Product,
   platform: PlatformPrice,
@@ -17,29 +21,29 @@ function listingFromPlatform(
   productBadge: string,
   productPinned: boolean,
 ): TrendingDealDto {
-  const org = platform.originalPrice;
-  const fin = platform.finalPrice;
+  const org = platform.originalPrice
+  const fin = platform.finalPrice
   const discountScore =
-    org > 0 ? Math.min(1, Math.max(0, (org - fin) / org)) : 0;
+    org > 0 ? Math.min(1, Math.max(0, (org - fin) / org)) : 0
   const trendScore = product.insight.isLowest90Days
     ? 0.88
     : product.insight.isLowest30Days
       ? 0.72
-      : 0.45;
-  const trustScore = platform.isOfficial ? 0.9 : 0.58;
-  const popularityScore = Math.min(1, platform.soldCount / 10000);
-  const freshnessScore = 0.94;
+      : 0.45
+  const trustScore = platform.isOfficial ? 0.9 : 0.58
+  const popularityScore = Math.min(1, platform.soldCount / 10000)
+  const freshnessScore = 0.94
   const dealScore =
     0.45 * discountScore +
     0.25 * trendScore +
     0.15 * trustScore +
     0.1 * popularityScore +
-    0.05 * freshnessScore;
-  const discountPercent = org > 0 ? ((org - fin) / org) * 100 : 0;
+    0.05 * freshnessScore
+  const discountPercent = org > 0 ? ((org - fin) / org) * 100 : 0
   const pinned =
     productPinned &&
     platform.isOfficial &&
-    platform.platform === 'Shopee';
+    platform.platform === 'Shopee'
 
   return {
     listingId,
@@ -61,7 +65,7 @@ function listingFromPlatform(
     trustScore,
     popularityScore,
     freshnessScore,
-  };
+  }
 }
 
 const TRENDING_PRODUCT_META: Record<
@@ -71,14 +75,14 @@ const TRENDING_PRODUCT_META: Record<
   1: { badge: 'HOT', pinned: false },
   2: { badge: 'PINNED', pinned: true },
   3: { badge: 'DEAL', pinned: false },
-};
+}
 
-/** Ứng viên thô: mọi sàn — logic nhóm / xếp hạng ở `prepareTrendingDealGroups` */
+/** Ứng viên thô: mọi sàn — nhóm / xếp hạng ở `prepareTrendingDealGroups` */
 export function buildMockTrendingDealCandidates(): TrendingDealDto[] {
-  const out: TrendingDealDto[] = [];
+  const out: TrendingDealDto[] = []
   for (const id of [1, 2, 3] as const) {
-    const p = productById(id);
-    const m = TRENDING_PRODUCT_META[id];
+    const p = trendingProductById(id)
+    const m = TRENDING_PRODUCT_META[id]
     p.platforms.forEach((pf, i) => {
       out.push(
         listingFromPlatform(
@@ -88,13 +92,15 @@ export function buildMockTrendingDealCandidates(): TrendingDealDto[] {
           m.badge,
           m.pinned,
         ),
-      );
-    });
+      )
+    })
   }
-  return out;
+  return out
 }
 
-export const mockTrendingDealCandidates = buildMockTrendingDealCandidates();
+export const mockTrendingDealCandidates = buildMockTrendingDealCandidates()
+
+/* ——— Deal cards / sections mock ——— */
 
 export const mockDeals: Deal[] = [
   {
@@ -145,7 +151,7 @@ export const mockDeals: Deal[] = [
     score: 90,
     createdAt: '2026-04-10T09:21:00Z',
   },
-];
+]
 
 export const mockDealSections: DealSection[] = [
   {
@@ -176,4 +182,4 @@ export const mockDealSections: DealSection[] = [
     type: 'near-historic-low',
     dealIds: ['deal-4'],
   },
-];
+]
