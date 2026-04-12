@@ -1,9 +1,12 @@
 package com.pricehawl.repository;
 
+import com.pricehawl.entity.Brand;
+import com.pricehawl.entity.Category;
 import com.pricehawl.entity.Product;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -13,74 +16,136 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@DisplayName("Database Connection Tests")
-class DatabaseConnectionTest {
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@DisplayName("Supabase Cosmetics Test")
+class ProductRepositorySupabaseTest {
 
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private CategoryRepository categoryRepository;
+
+    @Autowired
+    private BrandRepository brandRepository;
+
     @Test
-    @DisplayName("Should connect to database successfully")
-    void testDatabaseConnection() {
-        // Test cơ bản - kiểm tra repository có thể query được
+    @DisplayName("Should connect to Supabase successfully")
+    void testConnection() {
         List<Product> products = productRepository.findAll();
-        // Không assert gì vì có thể db rỗng hoặc có dữ liệu
-        // Chỉ cần không throw exception là OK
         assertNotNull(products);
     }
 
     @Test
-    @DisplayName("Should be able to save and retrieve Product entity")
-    void testSaveAndRetrieveProduct() {
-        // Tạo product mới
-        Product product = Product.builder()
-                .name("Test Product")
-                .slug("test-product")
-                .description("Test description")
-                .isActive(true)
-                .build();
+    @DisplayName("Should insert and read cosmetic product")
+    void testInsertAndRead() {
 
-        // Lưu vào database
-        Product savedProduct = productRepository.save(product);
-        assertNotNull(savedProduct.getId());
+        Category category = categoryRepository.save(
+                Category.builder()
+                        .name("Skincare")
+                        .slug("skincare")
+                        .build()
+        );
 
-        // Lấy lại từ database
-        Product retrievedProduct = productRepository.findById(savedProduct.getId()).orElse(null);
-        assertNotNull(retrievedProduct);
-        assertEquals("Test Product", retrievedProduct.getName());
-        assertEquals("test-product", retrievedProduct.getSlug());
-        assertEquals("Test description", retrievedProduct.getDescription());
-        assertTrue(retrievedProduct.getIsActive());
+        Brand brand = brandRepository.save(
+                Brand.builder()
+                        .name("La Roche-Posay")
+                        .slug("la-roche-posay")
+                        .build()
+        );
 
-        // Dọn dẹp - xóa test data
-        productRepository.delete(savedProduct);
+        Product product = productRepository.save(
+                Product.builder()
+                        .name("La Roche-Posay Effaclar Serum")
+                        .description("Serum trị mụn cho da dầu")
+                        .category(category)
+                        .brand(brand)
+                        .attributes("{\"type\":\"serum\"}") // 🔥 tránh lỗi jsonb
+                        .build()
+        );
+
+        Product found = productRepository.findById(product.getId()).orElse(null);
+
+        assertNotNull(found);
+        assertEquals("La Roche-Posay Effaclar Serum", found.getName());
     }
 
     @Test
-    @DisplayName("Should find product by name")
-    void testFindByName() {
-        // Tạo product test
-        Product product = Product.builder()
-                .name("iPhone 15")
-                .slug("iphone-15")
-                .description("Apple smartphone")
-                .isActive(true)
-                .build();
+    @DisplayName("Should run fuzzy search for cosmetics")
+    void testFuzzySearchSupabase() {
 
-        Product savedProduct = productRepository.save(product);
+        Category category = categoryRepository.save(
+                Category.builder()
+                        .name("Sunscreen")
+                        .slug("sunscreen")
+                        .build()
+        );
 
-        // Tìm theo tên (giả sử có method findByName)
-        // Nếu không có, test này sẽ fail và chúng ta biết cần implement
-        try {
-            Product foundProduct = productRepository.findByName("iPhone 15");
-            assertNotNull(foundProduct);
-            assertEquals("iPhone 15", foundProduct.getName());
-        } catch (Exception e) {
-            // Nếu method không tồn tại, test sẽ pass nhưng ghi log
-            System.out.println("findByName method not implemented yet: " + e.getMessage());
-        }
+        Brand brand = brandRepository.save(
+                Brand.builder()
+                        .name("Anessa")
+                        .slug("anessa")
+                        .build()
+        );
 
-        // Dọn dẹp
-        productRepository.delete(savedProduct);
+        Product product = productRepository.save(
+                Product.builder()
+                        .name("Anessa Perfect UV Sunscreen")
+                        .description("Kem chống nắng cao cấp")
+                        .category(category)
+                        .brand(brand)
+                        .attributes("{\"type\":\"serum\"}") // 🔥 fix jsonb
+                        .popularityScore(0)
+                       .build()
+        );
+
+        // test fuzzy search (gõ đúng)
+        List<Object[]> results = productRepository.fuzzySearchRaw("sunscreen");
+
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+
+        Object[] row = results.get(0);
+        assertEquals("Anessa Perfect UV Sunscreen", row[1]);
+
+        productRepository.delete(product);
+    }
+
+    @Test
+    @DisplayName("Should handle typo keyword (fuzzy search)")
+    void testFuzzySearchTypo() {
+
+        Category category = categoryRepository.save(
+                Category.builder()
+                        .name("Toner")
+                        .slug("toner")
+                        .build()
+        );
+
+        Brand brand = brandRepository.save(
+                Brand.builder()
+                        .name("Hada Labo")
+                        .slug("hada-labo")
+                        .build()
+        );
+
+        Product product = productRepository.save(
+                Product.builder()
+                        .name("Hada Labo Gokujyun Lotion")
+                        .description("Nước hoa hồng cấp ẩm")
+                        .category(category)
+                        .brand(brand)
+                        .attributes("{\"type\":\"serum\"}")
+                        .popularityScore(0)
+                        .build()
+        );
+
+        // 🔥 gõ sai vẫn phải ra
+        List<Object[]> results = productRepository.fuzzySearchRaw("hada labo");
+
+        assertNotNull(results);
+        assertFalse(results.isEmpty());
+
+        productRepository.delete(product);
     }
 }

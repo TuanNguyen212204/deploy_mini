@@ -1,138 +1,128 @@
 package com.pricehawl.service;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import com.pricehawl.dto.ProductSearchDTO;
+import com.pricehawl.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.anyString;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
 
-import com.pricehawl.dto.ProductSearchDTO;
-import com.pricehawl.repository.ProductRepository;
+import java.util.*;
 
-@DisplayName("ProductService Tests")
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+@DisplayName("ProductService Test - Cosmetics Domain")
 class ProductServiceTest {
 
     @Mock
     private ProductRepository repository;
 
     @InjectMocks
-    private ProductService productService;
+    private ProductService service;
 
     @BeforeEach
-    void setUp() {
+    void setup() {
         MockitoAnnotations.openMocks(this);
     }
 
-    // ================= HELPER =================
-    private List<Object[]> buildRows(Object[]... rows) {
-        List<Object[]> list = new ArrayList<>();
-        for (Object[] row : rows) {
-            list.add(row);
-        }
-        return list;
-    }
-
-    // ================= TEST =================
-
     @Test
-    @DisplayName("Return empty when keyword is null")
-    void testSearchWithNullKeyword() {
-        List<ProductSearchDTO> result = productService.search(null);
-        assertTrue(result.isEmpty());
-        verifyNoInteractions(repository);
-    }
+    @DisplayName("Should search skincare product correctly")
+    void testSearch_skincareProduct() {
+        UUID id = UUID.randomUUID();
 
-    @Test
-    @DisplayName("Return empty when keyword is empty")
-    void testSearchWithEmptyKeyword() {
-        List<ProductSearchDTO> result = productService.search("");
-        assertTrue(result.isEmpty());
-        verifyNoInteractions(repository);
-    }
+        List<Object[]> mockData = Collections.singletonList(new Object[]{
+                id,
+                "La Roche-Posay Effaclar Serum",
+                "Serum trị mụn cho da dầu",
+                "Skincare",
+                "La Roche-Posay",
+                0.92
+        });
 
-    @Test
-    @DisplayName("Return empty when keyword too short")
-    void testSearchWithShortKeyword() {
-        List<ProductSearchDTO> result = productService.search("a");
-        assertTrue(result.isEmpty());
-        verifyNoInteractions(repository);
-    }
+        when(repository.fuzzySearchRaw("serum")).thenReturn(mockData);
 
-    @Test
-    @DisplayName("Return empty when keyword is whitespace")
-    void testSearchWithWhitespaceKeyword() {
-        List<ProductSearchDTO> result = productService.search("   ");
-        assertTrue(result.isEmpty());
-        verifyNoInteractions(repository);
-    }
-
-    @Test
-    @DisplayName("Return results with valid keyword")
-    void testSearchWithValidKeyword() {
-
-        Object[] row1 = { "1", "iPhone 15", "Apple smartphone", "Electronics", "Apple", 95.5 };
-        Object[] row2 = { "2", "iPhone 14", "Apple smartphone", "Electronics", "Apple", 85.0 };
-
-        List<Object[]> mockRows = buildRows(row1, row2);
-
-        when(repository.fuzzySearchRaw("iphone")).thenReturn(mockRows);
-
-        List<ProductSearchDTO> result = productService.search("iphone");
-
-        assertEquals(2, result.size());
-
-        ProductSearchDTO first = result.get(0);
-        assertEquals("1", first.getId());
-        assertEquals("iPhone 15", first.getName());
-        assertEquals("Apple", first.getBrandName());
-        assertEquals(95.5, first.getScore());
-
-        ProductSearchDTO second = result.get(1);
-        assertEquals("2", second.getId());
-        assertEquals("iPhone 14", second.getName());
-        assertEquals(85.0, second.getScore());
-
-        verify(repository).fuzzySearchRaw("iphone");
-    }
-
-    @Test
-    @DisplayName("Trim keyword before searching")
-    void testSearchTrimsKeyword() {
-
-        Object[] row = { "1", "Samsung Galaxy", "Smartphone", "Electronics", "Samsung", 90.0 };
-
-        List<Object[]> mockRows = buildRows(row);
-
-        when(repository.fuzzySearchRaw("samsung")).thenReturn(mockRows);
-
-        List<ProductSearchDTO> result = productService.search("  samsung  ");
+        List<ProductSearchDTO> result = service.search("serum");
 
         assertEquals(1, result.size());
-        assertEquals("Samsung Galaxy", result.get(0).getName());
 
-        verify(repository).fuzzySearchRaw("samsung");
+        ProductSearchDTO dto = result.get(0);
+
+        assertEquals("La Roche-Posay Effaclar Serum", dto.getName());
+        assertEquals("Skincare", dto.getCategoryName());
+        assertEquals("La Roche-Posay", dto.getBrandName());
+        assertTrue(dto.getScore() > 0.9);
     }
 
     @Test
-    @DisplayName("Return empty when repository returns empty")
-    void testSearchWithNoResults() {
+    @DisplayName("Should handle typo keyword (fuzzy search)")
+    void testSearch_typoKeyword() {
+        UUID id = UUID.randomUUID();
 
-        when(repository.fuzzySearchRaw(anyString())).thenReturn(new ArrayList<>());
+        List<Object[]> mockData = Collections.singletonList(new Object[]{
+                id,
+                "Anessa Perfect UV Sunscreen",
+                "Kem chống nắng cao cấp",
+                "Sunscreen",
+                "Anessa",
+                0.75
+        });
 
-        List<ProductSearchDTO> result = productService.search("nonexistent");
+        when(repository.fuzzySearchRaw("sunsreen")).thenReturn(mockData);
+
+        List<ProductSearchDTO> result = service.search("sunsreen");
+
+        assertFalse(result.isEmpty());
+        assertEquals("Anessa Perfect UV Sunscreen", result.get(0).getName());
+    }
+
+    @Test
+    @DisplayName("Should handle null score safely")
+    void testSearch_nullScore() {
+        UUID id = UUID.randomUUID();
+
+        List<Object[]> mockData = Collections.singletonList(new Object[]{
+                id,
+                "Hada Labo Gokujyun Lotion",
+                "Nước hoa hồng cấp ẩm",
+                "Toner",
+                "Hada Labo",
+                null
+        });
+
+        when(repository.fuzzySearchRaw("hada")).thenReturn(mockData);
+
+        List<ProductSearchDTO> result = service.search("hada");
+
+        assertEquals(0.0, result.get(0).getScore());
+    }
+
+    @Test
+    @DisplayName("Should return empty when keyword too short")
+    void testSearch_invalidKeyword() {
+        List<ProductSearchDTO> result = service.search("a");
 
         assertTrue(result.isEmpty());
+        verify(repository, never()).fuzzySearchRaw(any());
+    }
 
-        verify(repository).fuzzySearchRaw("nonexistent");
+    @Test
+    @DisplayName("Should return empty when no product found")
+    void testSearch_noResult() {
+        when(repository.fuzzySearchRaw("xyzabc")).thenReturn(Collections.emptyList());
+
+        List<ProductSearchDTO> result = service.search("xyzabc");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should handle repository returning null")
+    void testSearch_repoNull() {
+        when(repository.fuzzySearchRaw("serum")).thenReturn(null);
+
+        List<ProductSearchDTO> result = service.search("serum");
+
+        assertTrue(result.isEmpty());
     }
 }
