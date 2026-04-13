@@ -54,7 +54,6 @@ CREATE TABLE product (
                          skin_type   VARCHAR(100),
                          volume_ml   VARCHAR(50),
                          attributes  JSONB,
-                         popularity_score INT NOT NULL DEFAULT 0,
                          created_at  TIMESTAMP    NOT NULL DEFAULT NOW(),
                          updated_at  TIMESTAMP    NOT NULL DEFAULT NOW()
 );
@@ -73,11 +72,6 @@ CREATE TABLE product_listing (
                                  platform_name      VARCHAR(500)  NOT NULL,
                                  url                VARCHAR(1000) NOT NULL UNIQUE,
                                  platform_image_url VARCHAR(500),
-                                 trust_score        DOUBLE PRECISION NOT NULL DEFAULT 0,
-                                 status             VARCHAR(20)      NOT NULL DEFAULT 'ACTIVE',
-                                 is_fake_promo      BOOLEAN          NOT NULL DEFAULT FALSE,
-                                 is_pinned          BOOLEAN          NOT NULL DEFAULT FALSE,
-                                 crawl_time         TIMESTAMP,
                                  updated_at         TIMESTAMP     NOT NULL DEFAULT NOW()
 );
 

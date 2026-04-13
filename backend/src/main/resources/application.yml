@@ -1,28 +1,35 @@
 spring:
   datasource:
-    # URL này dành cho chế độ Connection Pooler (Transaction) của Supabase
-    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:6543/postgres?prepareThreshold=0
-    username: postgres.astkanfsacxriwprspqr
-    password: PriceHawl123@
+    url: jdbc:postgresql://db.astkanfsacxriwprspqr.supabase.co:5432/postgres
+    username: postgres
+    password: "PriceHawl123@"
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      # Đổi thành update để Hibernate tự tạo bảng khớp với các file Entity bạn đã viết
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
     properties:
       hibernate:
-        # Cấu hình bắt buộc khi kết nối qua cổng 6543 của Supabase
-        jdbc.lob.non_contextual_creation: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
 
   flyway:
-    enabled: false
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+server:
   port: 8080
 
-  cache:
-    type: caffeine
-    cache-names: trendingDeals
-    caffeine:
-      spec: maximumSize=50,expireAfterWrite=2h
+logging:
+  level:
+    root: DEBUG
+  file:
+    name: logs/app.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30

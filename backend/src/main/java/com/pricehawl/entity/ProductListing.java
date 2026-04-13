@@ -6,7 +6,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,39 +40,11 @@ public class ProductListing {
     @Column(length = 500)
     private String platformImageUrl;
 
-    @UpdateTimestamp
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Double trustScore = 0.0;
-
-    @Column(length = 20, nullable = false)
-    @Builder.Default
-    private String status = "ACTIVE";
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean isFakePromo = false;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean isPinned = false;
-
-    @Column
-    private LocalDateTime crawlTime;
-
-    @OneToMany(mappedBy = "productListing", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "productListing", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PriceRecord> priceRecords = new ArrayList<>();
 
-    public PriceRecord getLatestPriceRecord() {
-        if (priceRecords == null || priceRecords.isEmpty()) {
-            return null;
-        }
-        return priceRecords.stream()
-                .max(Comparator.comparing(PriceRecord::getCrawledAt))
-                .orElse(null);
-    }
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 }

@@ -3,19 +3,23 @@ package com.pricehawl.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "product", indexes = {
-        @Index(name = "idx_product_name_gin", columnList = "name")
-})
-@Data
+@Table(name = "product")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {"category", "brand"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Product {
 
     @Id
@@ -48,12 +52,9 @@ public class Product {
     @Column(length = 50)
     private String volumeMl;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String attributes;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private Integer popularityScore = 0;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -62,4 +63,10 @@ public class Product {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "popularity_score", nullable = false)
+    private Integer popularityScore;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    private List<ProductListing> listings;
 }
