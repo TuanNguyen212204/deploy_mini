@@ -49,4 +49,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     LIMIT 20
 """, nativeQuery = true)
     List<Object[]> fuzzySearchRaw(@Param("keyword") String keyword);
+    @EntityGraph(attributePaths = {"listings"})
+    List<Product> findAllByIdIn(List<UUID> ids);
 }
