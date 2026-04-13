@@ -40,7 +40,7 @@ export default function ProductCompareCard({
     label: string;
   }> = [];
 
-  if (!product.insight.isFakeDiscountRisk) {
+  if (product.insight?.isFakeDiscountRisk ?? false) {
     topBadges.push({
       key: 'real-deal',
       variant: 'brand',
@@ -48,13 +48,13 @@ export default function ProductCompareCard({
     });
   }
 
-  if (product.insight.isLowest90Days) {
+  if (product.insight?.isLowest90Days ?? false) {
     topBadges.push({
       key: 'lowest-90',
       variant: 'warning',
       label: 'Giá đẹp 90 ngày',
     });
-  } else if (product.insight.isLowest30Days) {
+  } else if (product.insight?.isLowest30Days ?? false) {
     topBadges.push({
       key: 'lowest-30',
       variant: 'soft',
@@ -62,7 +62,7 @@ export default function ProductCompareCard({
     });
   }
 
-  if (product.insight.isFakeDiscountRisk && topBadges.length < 2) {
+  if ((product.insight?.isFakeDiscountRisk ?? false) && topBadges.length < 2) {
     topBadges.push({
       key: 'risk',
       variant: 'danger',
@@ -76,7 +76,7 @@ export default function ProductCompareCard({
         <Link to={`/product/${product.id}`} className="flex min-w-0 gap-5 lg:flex-1">
           <div className="relative h-36 w-28 shrink-0 overflow-hidden rounded-[26px] bg-[#ECE4DA]">
             <img
-              src={product.images[0]}
+              src={product.images}
               alt={product.name}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             />
@@ -105,7 +105,7 @@ export default function ProductCompareCard({
             </h3>
 
             <p className="mt-3 text-sm text-[#74685F]">
-              {product.rating} · {product.reviews.toLocaleString('vi-VN')} reviews
+              {product.rating} ·{(product.reviews ?? 0).toLocaleString('vi-VN')}reviews
             </p>
 
             {topBadges.length > 0 && (

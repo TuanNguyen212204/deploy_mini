@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Bell, Search } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ProductCompareCard from '../components/product/ProductCompareCard';
-import { mockProducts } from '../data/mockProducts';
+import { useEffect } from 'react';
+import  { searchProducts } from '../service/ProductSearchService';
 import type { Product, Platform } from '../types/product';
 import AppHeader from '../components/layout/AppHeader';
 
@@ -30,41 +31,15 @@ export default function SearchResultsPage() {
     const [sortBy, setSortBy] = useState<'best-price' | 'rating' | 'reviews'>(
         'best-price',
     );
+    const [products, setProducts] = useState<Product[]>([]);
 
-    const filteredProducts = useMemo(() => {
-        const normalizedQuery = query.trim().toLowerCase();
+    useEffect(() => {
+        if (!query) return;
 
-        let result = mockProducts.filter((product) => {
-            const matchesText =
-                !normalizedQuery ||
-                product.name.toLowerCase().includes(normalizedQuery) ||
-                product.brand.toLowerCase().includes(normalizedQuery) ||
-                product.model.toLowerCase().includes(normalizedQuery) ||
-                product.category.toLowerCase().includes(normalizedQuery);
-
-            const matchesPlatform =
-                platform === 'all' ||
-                product.platforms.some((item) => item.platform === platform);
-
-            const matchesOfficial =
-                !onlyOfficial ||
-                product.platforms.some((item) => item.isOfficial);
-
-            return matchesText && matchesPlatform && matchesOfficial;
-        });
-
-        result = [...result].sort((a, b) => {
-            const bestA = Math.min(...a.platforms.map((item) => item.finalPrice));
-            const bestB = Math.min(...b.platforms.map((item) => item.finalPrice));
-
-            if (sortBy === 'best-price') return bestA - bestB;
-            if (sortBy === 'rating') return b.rating - a.rating;
-            return b.reviews - a.reviews;
-        });
-
-        return result;
-    }, [onlyOfficial, platform, query, sortBy]);
-
+        searchProducts(query)
+            .then(data => setProducts(data))
+            .catch(err => console.error(err));
+    }, [query]);
     const onSubmitSearch = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setSearchParams(query ? { q: query } : {});
@@ -73,7 +48,7 @@ export default function SearchResultsPage() {
     const summaryText = useMemo(() => {
         const parts: string[] = [];
 
-        parts.push(`${filteredProducts.length} kết quả`);
+        parts.push(`${products.length} kết quả`);
 
         if (platform !== 'all') {
             parts.push(`trên ${platform}`);
@@ -92,7 +67,7 @@ export default function SearchResultsPage() {
         }
 
         return parts.join(' · ');
-    }, [filteredProducts.length, onlyOfficial, platform, sortBy]);
+    }, [products.length, onlyOfficial, platform, sortBy]);
 
     return (
         <div
@@ -202,8 +177,8 @@ export default function SearchResultsPage() {
                 </section>
 
                 <section className="space-y-6">
-                    {filteredProducts.length > 0 ? (
-                        filteredProducts.map((product: Product) => (
+                    {products.length > 0 ? (
+                        products.map((product: Product) => (
                             <ProductCompareCard key={product.id} product={product} />
                         ))
                     ) : (
