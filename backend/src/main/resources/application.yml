@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://db.astkanfsacxriwprspqr.supabase.co:5432/postgres
-    username: postgres
-    password: "YOUR_PASSWORD_HERE"
+    url: jdbc:postgresql://aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
+    username: postgres.astkanfsacxriwprspqr
+    password: "PriceHawl123@"
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -16,7 +16,7 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true # Nên thêm dòng này để tránh lỗi nếu db đã có sẵn dữ liệu
+    baseline-on-migrate: true
 
 server:
   port: 8080
