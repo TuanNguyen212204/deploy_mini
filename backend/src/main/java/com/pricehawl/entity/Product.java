@@ -65,4 +65,6 @@ public class Product {
 
     @Column(name = "popularity_score", nullable = false)
     private Integer popularityScore;
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    private java.util.List<ProductListing> listings;
 }
