@@ -12,10 +12,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Bảng phụ lưu "tín hiệu" cho Trending Deals mà không cần sửa entity ProductListing.
- * Mục tiêu: hạn chế conflict khi merge DB và giữ ProductListing tối giản theo team.
- */
+
 @Entity
 @Table(name = "product_listing_signal")
 @Data
