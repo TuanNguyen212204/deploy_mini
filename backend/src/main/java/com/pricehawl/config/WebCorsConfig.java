@@ -22,7 +22,13 @@ public class WebCorsConfig {
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Trending-Computed-At",
+                "X-Trending-Next-Refresh-After",
+                "X-Trending-Cache-Ttl-Seconds"
+        ));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

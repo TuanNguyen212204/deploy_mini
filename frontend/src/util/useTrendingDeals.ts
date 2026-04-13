@@ -19,8 +19,14 @@ export function useTrendingDeals() {
     fetchTrendingDeals(true)
       .then(({ deals: rows, meta: m }) => {
         if (!cancelled) {
-          setDeals(rows)
-          setMeta(m)
+          // DB trống (API trả []): vẫn hiển thị mock để demo UI.
+          if (rows.length > 0) {
+            setDeals(rows)
+            setMeta(m)
+          } else {
+            setDeals(mockTrendingDealCandidates)
+            setMeta(null)
+          }
         }
       })
       .catch(() => {

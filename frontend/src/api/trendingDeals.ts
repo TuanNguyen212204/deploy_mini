@@ -19,7 +19,8 @@ export function resolveUseTrendingApi(): boolean {
   const s = String(raw ?? '').toLowerCase().trim()
   if (s === 'false' || s === '0') return false
   if (s === 'true' || s === '1') return true
-  return import.meta.env.DEV
+  // Mặc định: ưu tiên gọi backend; nếu DB trống thì hook sẽ fallback sang mock.
+  return true
 }
 
 function readTrendingMeta(res: Response): TrendingDealsApiMeta | null {

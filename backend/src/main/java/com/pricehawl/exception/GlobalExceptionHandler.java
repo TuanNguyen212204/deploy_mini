@@ -27,9 +27,3 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage()));
     }
 }
-
-class NoDealsFoundException extends RuntimeException {
-    NoDealsFoundException(String message) {
-        super(message);
-    }
-}

@@ -37,6 +37,8 @@ public final class TrendingDealModels {
         private String badge;
         private String explanation;
         private boolean isPinned;
+        private Boolean priceConflict;
+        private String priceConflictMessage;
         private Double discountScore;
         private Double trendScore;
         private Double trustScore;
@@ -64,6 +66,12 @@ public final class TrendingDealModels {
         }
     }
 
-    public record TrendingDealDTO(ProductListing listing, DealScoreCalculation score) {
+    public record TrendingDealDTO(
+            ProductListing listing,
+            DealScoreCalculation score,
+            com.pricehawl.entity.PriceRecord latestPriceRecord,
+            List<com.pricehawl.entity.PriceRecord> priceRecordsDesc,
+            com.pricehawl.entity.ProductListingSignal signal
+    ) {
     }
 }

@@ -21,8 +21,7 @@ class TrendingDealFakePromoHeuristicTest {
             recs.add(pr(listing, t0.plusDays(d), 200_000, 210_000, 5f, false));
         }
         recs.add(pr(listing, t0.plusDays(8), 45_000, 200_000, 77.5f, false));
-        listing.setPriceRecords(recs);
-        assertTrue(TrendingDealEngine.isLikelyFakePromo(listing));
+        assertTrue(TrendingDealEngine.isLikelyFakePromo(recs));
     }
 
     @Test
@@ -36,8 +35,7 @@ class TrendingDealFakePromoHeuristicTest {
         for (int d = 6; d <= 10; d++) {
             recs.add(pr(listing, t0.plusDays(d), 70_000, 220_000, 68f, false));
         }
-        listing.setPriceRecords(recs);
-        assertTrue(TrendingDealEngine.isLikelyFakePromo(listing));
+        assertTrue(TrendingDealEngine.isLikelyFakePromo(recs));
     }
 
     @Test
@@ -49,8 +47,7 @@ class TrendingDealFakePromoHeuristicTest {
             recs.add(pr(listing, t0.plusDays(d), 180_000, 200_000, 10f, false));
         }
         recs.add(pr(listing, t0.plusDays(8).plusHours(1), 30_000, 200_000, 85f, true));
-        listing.setPriceRecords(recs);
-        assertTrue(TrendingDealEngine.isLikelyFakePromo(listing));
+        assertTrue(TrendingDealEngine.isLikelyFakePromo(recs));
     }
 
     @Test
@@ -63,8 +60,7 @@ class TrendingDealFakePromoHeuristicTest {
             int price = base - d * 4_500;
             recs.add(pr(listing, t0.plusDays(d), price, 249_000, null, false));
         }
-        listing.setPriceRecords(recs);
-        assertFalse(TrendingDealEngine.isLikelyFakePromo(listing));
+        assertFalse(TrendingDealEngine.isLikelyFakePromo(recs));
     }
 
     private static ProductListing listing(double trust) {
@@ -83,9 +79,6 @@ class TrendingDealFakePromoHeuristicTest {
                 .platform(Platform.builder().id(1).name("Hasaki").isActive(true).build())
                 .platformName("Hasaki")
                 .url("https://example.com/x")
-                .trustScore(trust)
-                .status(TrendingDealEngine.STATUS_ACTIVE)
-                .isFakePromo(false)
                 .build();
     }
 

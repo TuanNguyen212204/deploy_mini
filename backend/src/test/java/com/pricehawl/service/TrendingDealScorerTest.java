@@ -23,7 +23,17 @@ class TrendingDealScorerTest {
                 .url("https://example.com/p")
                 .build();
 
-        DealScoreCalculation calc = TrendingDealEngine.score(listing);
+        ProductListingSignal signal = ProductListingSignal.builder()
+                .listingId(listing.getId())
+                .trustScore(0.9)
+                .status(TrendingDealEngine.STATUS_ACTIVE)
+                .isFakePromo(false)
+                .isHijacked(false)
+                .isPinned(false)
+                .crawlTime(LocalDateTime.now())
+                .build();
+
+        DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, List.of());
         assertEquals(0.0, calc.totalDealScore(), 1e-9);
     }
 
@@ -35,8 +45,6 @@ class TrendingDealScorerTest {
                 .platform(samplePlatform())
                 .platformName("Shop")
                 .url("https://example.com/q")
-                .trustScore(1.0)
-                .crawlTime(LocalDateTime.now())
                 .build();
 
         List<PriceRecord> history = new ArrayList<>();
@@ -51,9 +59,17 @@ class TrendingDealScorerTest {
             pr.setProductListing(listing);
             history.add(pr);
         }
-        listing.setPriceRecords(history);
+        ProductListingSignal signal = ProductListingSignal.builder()
+                .listingId(listing.getId())
+                .trustScore(1.0)
+                .status(TrendingDealEngine.STATUS_ACTIVE)
+                .isFakePromo(false)
+                .isHijacked(false)
+                .isPinned(false)
+                .crawlTime(LocalDateTime.now())
+                .build();
 
-        DealScoreCalculation calc = TrendingDealEngine.score(listing);
+        DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, history);
         assertTrue(calc.totalDealScore() > 0);
         assertTrue(calc.discountScore() > 0);
     }
@@ -93,9 +109,6 @@ class TrendingDealScorerTest {
                 .platform(Platform.builder().id(1).name("Guardian").build())
                 .platformName("Guardian")
                 .url("https://example.com/z")
-                .trustScore(0.85)
-                .status(TrendingDealEngine.STATUS_ACTIVE)
-                .isFakePromo(false)
                 .build();
     }
 

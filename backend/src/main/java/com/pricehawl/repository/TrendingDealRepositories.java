@@ -4,6 +4,7 @@ import com.pricehawl.entity.PriceAlert;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.Product;
 import com.pricehawl.entity.ProductListing;
+import com.pricehawl.entity.ProductListingSignal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -32,11 +33,6 @@ public final class TrendingDealRepositories {
                 SELECT DISTINCT p FROM ProductListing p
                 LEFT JOIN FETCH p.product
                 LEFT JOIN FETCH p.platform
-                LEFT JOIN FETCH p.priceRecords
-                WHERE p.trustScore >= 0.50
-                  AND p.status = 'ACTIVE'
-                  AND p.isFakePromo = false
-                  AND p.crawlTime IS NOT NULL
                 """)
         List<ProductListing> findTrendingCandidates();
     }
@@ -60,5 +56,10 @@ public final class TrendingDealRepositories {
     public interface PriceAlertRepository extends JpaRepository<PriceAlert, UUID> {
 
         List<PriceAlert> findByUser_IdAndIsActiveTrue(UUID userId);
+    }
+
+    public interface ProductListingSignalRepository extends JpaRepository<ProductListingSignal, UUID> {
+
+        List<ProductListingSignal> findByListingIdIn(List<UUID> listingIds);
     }
 }

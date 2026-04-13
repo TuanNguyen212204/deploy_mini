@@ -17,7 +17,7 @@ export function formatTrendingDealMeta(meta: TrendingDealsApiMeta): string {
     const computed = new Date(meta.computedAt)
     const next = new Date(meta.nextRefreshAfter)
     const mins = Math.round(meta.cacheTtlSeconds / 60)
-    return `Snapshot backend: ${computed.toLocaleString('vi-VN')} — danh sách được cache tối đa ${mins} phút (làm mới tiếp theo ~ ${next.toLocaleString('vi-VN')}).`
+    return `${computed.toLocaleString('vi-VN')} — cache tối đa ${mins} phút (làm mới ~ ${next.toLocaleString('vi-VN')}).`
   } catch {
     return ''
   }

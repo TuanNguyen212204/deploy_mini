@@ -3,6 +3,7 @@ package com.pricehawl.service;
 import com.pricehawl.dto.TrendingDealModels.DealScoreCalculation;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.ProductListing;
+import com.pricehawl.entity.ProductListingSignal;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -34,6 +35,9 @@ public final class TrendingDealEngine {
     public static final long SNAPSHOT_CACHE_TTL_SECONDS = 2L * 60 * 60;
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final float MIN_REAL_DISCOUNT_PCT_INCLUSIVE = 10f; // S1
+    public static final double MIN_TREND_SCORE_INCLUSIVE = 0.20;     // S3 (heuristic)
+    public static final int MIN_POPULARITY_SCORE_INCLUSIVE = 50;     // S4 (heuristic)
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
     public static final double FAKE_PROMO_HISTORICAL_LOW_DISCOUNT_PCT = 18.0;
@@ -52,26 +56,10 @@ public final class TrendingDealEngine {
         if (p == null) {
             return false;
         }
-        if (Boolean.TRUE.equals(p.getIsFakePromo())) {
-            return false;
-        }
-        if (p.getPlatform() != null && Boolean.FALSE.equals(p.getPlatform().getIsActive())) {
-            return false;
-        }
-        if (p.getTrustScore() == null || p.getTrustScore() < MIN_TRUST_SCORE_INCLUSIVE) {
-            return false;
-        }
-        if (!STATUS_ACTIVE.equals(p.getStatus())) {
-            return false;
-        }
-        if (p.getCrawlTime() == null) {
-            return false;
-        }
-        return !isLikelyFakePromo(p);
+        return p.getPlatform() == null || !Boolean.FALSE.equals(p.getPlatform().getIsActive());
     }
 
-    public static boolean hasMinimumPriceHistorySpan(ProductListing p) {
-        List<PriceRecord> recs = p.getPriceRecords();
+    public static boolean hasMinimumPriceHistorySpan(List<PriceRecord> recs) {
         if (recs == null || recs.isEmpty()) {
             return false;
         }
@@ -90,29 +78,95 @@ public final class TrendingDealEngine {
         return days >= MIN_PRICE_HISTORY_SPAN_DAYS;
     }
 
-    public static boolean hasInStockLatest(ProductListing p) {
-        PriceRecord latest = p.getLatestPriceRecord();
+    public static boolean hasInStockLatest(PriceRecord latest) {
         return latest != null && Boolean.TRUE.equals(latest.getInStock());
     }
 
-    public static boolean isEligibleForTrending(ProductListing p) {
+    public static boolean isEligibleForTrending(
+            ProductListing p,
+            ProductListingSignal signal,
+            List<PriceRecord> recs) {
+
+        PriceRecord latest = latest(recs);
+        if (signal == null) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(signal.getIsHijacked())) {
+            return false; // D4
+        }
+        if (Boolean.TRUE.equals(signal.getIsFakePromo())) {
+            return false; // S2
+        }
+        if (!STATUS_ACTIVE.equals(signal.getStatus())) {
+            return false; // D3 + AC-06
+        }
+        if (signal.getTrustScore() == null || signal.getTrustScore() < MIN_TRUST_SCORE_INCLUSIVE) {
+            return false; // D2 + AC-03
+        }
         return passesCoreListingRules(p)
-                && hasMinimumPriceHistorySpan(p)
-                && hasInStockLatest(p);
+                && hasMinimumPriceHistorySpan(recs)
+                && hasInStockLatest(latest)
+                && !isLikelyFakePromo(recs);
     }
 
-    public static boolean isLikelyFakePromo(ProductListing listing) {
-        if (listing == null) {
-            return true;
+    public static boolean isEligibleOrganic(
+            ProductListing listing,
+            ProductListingSignal signal,
+            List<PriceRecord> recsDesc) {
+
+        if (!isEligibleForTrending(listing, signal, recsDesc)) {
+            return false;
         }
-        List<PriceRecord> raw = listing.getPriceRecords();
+        HistoricalDiscountResult hist = computeHistoricalDiscount(recsDesc);
+        if (hist.discountPercent() < MIN_REAL_DISCOUNT_PCT_INCLUSIVE) {
+            return false; // S1
+        }
+        double trend = calculateTrend(recsDesc);
+        if (trend < MIN_TREND_SCORE_INCLUSIVE) {
+            return false; // S3
+        }
+        int pop = listing != null && listing.getProduct() != null && listing.getProduct().getPopularityScore() != null
+                ? listing.getProduct().getPopularityScore()
+                : 0;
+        if (pop < MIN_POPULARITY_SCORE_INCLUSIVE) {
+            return false; // S4
+        }
+        return true;
+    }
+
+    public static boolean isEligiblePinned(
+            ProductListing listing,
+            ProductListingSignal signal,
+            List<PriceRecord> recsDesc) {
+
+        if (signal == null || !Boolean.TRUE.equals(signal.getIsPinned())) {
+            return false;
+        }
+        // Admin pin (S5) vẫn phải tuân thủ các điều kiện cứng của AC-01/06 và hijacked.
+        if (Boolean.TRUE.equals(signal.getIsHijacked())) {
+            return false;
+        }
+        if (!STATUS_ACTIVE.equals(signal.getStatus())) {
+            return false;
+        }
+        PriceRecord latest = latest(recsDesc);
+        return passesCoreListingRules(listing)
+                && hasMinimumPriceHistorySpan(recsDesc)
+                && hasInStockLatest(latest);
+    }
+
+    public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
         if (raw == null || raw.size() < 3) {
             return false;
         }
 
         List<PriceRecord> sorted = raw.stream()
+                .filter(r -> r != null && r.getCrawledAt() != null)
                 .sorted(Comparator.comparing(PriceRecord::getCrawledAt))
                 .toList();
+        if (sorted.size() < 3) {
+            return false;
+        }
 
         PriceRecord latest = sorted.get(sorted.size() - 1);
         double latestDisc = platformDiscountPct(latest);
@@ -133,9 +187,6 @@ public final class TrendingDealEngine {
             return true;
         }
         if (tooManySteepDrops(sorted)) {
-            return true;
-        }
-        if (lowTrustAggressiveDiscount(listing, latestDisc)) {
             return true;
         }
         return false;
@@ -225,17 +276,6 @@ public final class TrendingDealEngine {
         return steep >= FAKE_PROMO_MAX_STEEP_DROPS;
     }
 
-    private static boolean lowTrustAggressiveDiscount(ProductListing listing, double latestDisc) {
-        Double t = listing.getTrustScore();
-        if (t == null) {
-            return false;
-        }
-        if (t >= FAKE_PROMO_LOW_TRUST_CAP) {
-            return false;
-        }
-        return latestDisc >= FAKE_PROMO_LOW_TRUST_DEEP_DISCOUNT_PCT;
-    }
-
     private static double medianOriginal(List<PriceRecord> segment) {
         List<Integer> vals = segment.stream()
                 .map(PriceRecord::getOriginalPrice)
@@ -273,17 +313,16 @@ public final class TrendingDealEngine {
     public record HistoricalDiscountResult(int referencePrice, int currentPrice, float discountPercent) {
     }
 
-    public static HistoricalDiscountResult computeHistoricalDiscount(ProductListing listing) {
-        PriceRecord latest = listing.getLatestPriceRecord();
+    public static HistoricalDiscountResult computeHistoricalDiscount(List<PriceRecord> recordsDesc) {
+        PriceRecord latest = latest(recordsDesc);
         if (latest == null) {
             return new HistoricalDiscountResult(0, 0, 0f);
         }
         int current = latest.getPrice() != null ? latest.getPrice() : 0;
-        List<PriceRecord> sorted = new ArrayList<>(listing.getPriceRecords());
+        List<PriceRecord> sorted = recordsAsc(recordsDesc);
         if (sorted.isEmpty()) {
             return new HistoricalDiscountResult(0, current, 0f);
         }
-        sorted.sort(Comparator.comparing(PriceRecord::getCrawledAt));
         int n = sorted.size();
         int excludeRecent = Math.max(1, Math.min(n - 1, (int) Math.ceil(n * 0.2)));
         List<Integer> refPrices = new ArrayList<>();
@@ -328,21 +367,26 @@ public final class TrendingDealEngine {
 
     /* --- Scoring (trước đây TrendingDealScorer) --- */
 
-    public static DealScoreCalculation score(ProductListing listing) {
-        PriceRecord latest = listing.getLatestPriceRecord();
+    public static DealScoreCalculation score(
+            ProductListing listing,
+            ProductListingSignal signal,
+            List<PriceRecord> recordsDesc) {
+
+        PriceRecord latest = latest(recordsDesc);
         if (latest == null) {
             return DealScoreCalculation.zero();
         }
 
-        HistoricalDiscountResult hist = computeHistoricalDiscount(listing);
+        HistoricalDiscountResult hist = computeHistoricalDiscount(recordsDesc);
         double discount = Math.min(1.0, Math.max(0.0, hist.discountPercent() / 100.0));
 
-        List<PriceRecord> forTrend = new ArrayList<>(listing.getPriceRecords());
-        double trend = calculateTrend(forTrend);
-        double trust = calculateTrust(listing.getTrustScore());
-        double popularity = calculatePopularity(listing.getProduct().getPopularityScore());
+        double trend = calculateTrend(recordsDesc);
+        double trust = calculateTrust(signal != null ? signal.getTrustScore() : null);
+        double popularity = calculatePopularity(listing != null && listing.getProduct() != null
+                ? listing.getProduct().getPopularityScore()
+                : null);
         double freshness = calculateFreshness(
-                listing.getCrawlTime() != null ? listing.getCrawlTime() : latest.getCrawledAt());
+                signal != null && signal.getCrawlTime() != null ? signal.getCrawlTime() : latest.getCrawledAt());
 
         double total = W_DISCOUNT * discount
                 + W_TREND * trend
@@ -353,11 +397,14 @@ public final class TrendingDealEngine {
         return new DealScoreCalculation(discount, trend, trust, popularity, freshness, total);
     }
 
-    private static double calculateTrend(List<PriceRecord> records) {
-        if (records == null || records.size() < 3) {
+    private static double calculateTrend(List<PriceRecord> recordsDesc) {
+        if (recordsDesc == null || recordsDesc.size() < 3) {
             return 0.0;
         }
-        records.sort(Comparator.comparing(PriceRecord::getCrawledAt));
+        List<PriceRecord> records = recordsAsc(recordsDesc);
+        if (records.size() < 3) {
+            return 0.0;
+        }
         double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
         int n = records.size();
         for (int i = 0; i < n; i++) {
@@ -378,12 +425,15 @@ public final class TrendingDealEngine {
 
     private static double calculateTrust(Double trustScore) {
         if (trustScore == null) {
-            return 0.0;
+            return 0.60;
         }
         return Math.max(0.0, Math.min(1.0, trustScore));
     }
 
-    private static double calculatePopularity(int popularity) {
+    private static double calculatePopularity(Integer popularity) {
+        if (popularity == null || popularity <= 0) {
+            return 0.0;
+        }
         return Math.min(1.0, popularity / 10000.0);
     }
 
@@ -411,12 +461,10 @@ public final class TrendingDealEngine {
                 float realDiscountPct,
                 PriceRecord latest) {
 
-            double trustPct = listing.getTrustScore() != null ? listing.getTrustScore() * 100.0 : 0.0;
             StringBuilder sb = new StringBuilder(160);
             sb.append(String.format(Locale.ROOT,
                     "Giảm khoảng %.0f%% so với giá tham chiếu từ lịch sử (tránh giá gốc sàn thổi phồng).",
                     realDiscountPct));
-            sb.append(String.format(Locale.ROOT, " Độ tin cậy listing %.0f/100.", trustPct));
             sb.append(" Xu hướng tính trên lịch sử tối thiểu 7 ngày.");
             if (latest != null && latest.getCrawledAt() != null) {
                 sb.append(" Cập nhật giá gần nhất: ").append(VI_TIME.format(latest.getCrawledAt())).append('.');
@@ -430,5 +478,25 @@ public final class TrendingDealEngine {
             }
             return text;
         }
+    }
+
+    public static PriceRecord latest(List<PriceRecord> recordsDesc) {
+        if (recordsDesc == null || recordsDesc.isEmpty()) {
+            return null;
+        }
+        return recordsDesc.stream()
+                .filter(r -> r != null && r.getCrawledAt() != null)
+                .max(Comparator.comparing(PriceRecord::getCrawledAt))
+                .orElse(null);
+    }
+
+    public static List<PriceRecord> recordsAsc(List<PriceRecord> recordsDesc) {
+        if (recordsDesc == null || recordsDesc.isEmpty()) {
+            return List.of();
+        }
+        return recordsDesc.stream()
+                .filter(r -> r != null && r.getCrawledAt() != null && r.getPrice() != null)
+                .sorted(Comparator.comparing(PriceRecord::getCrawledAt))
+                .toList();
     }
 }

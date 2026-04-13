@@ -3,14 +3,13 @@ import { Loader2 } from 'lucide-react'
 import {
   TRENDING_DEAL_DISCLAIMER,
   TRENDING_DEAL_FONT_STACK,
-  formatTrendingDealMeta,
 } from '../../util/trendingDealFormat'
 import { prepareTrendingDealGroups } from '../../util/trendingDealPrepare'
 import { useTrendingDeals } from '../../util/useTrendingDeals'
 import { TrendingDealGroupBlock } from './TrendingDealGroupBlock'
 
 export default function TrendingDealsSection() {
-  const { deals, loading, meta, useApi } = useTrendingDeals()
+  const { deals, loading } = useTrendingDeals()
   const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({})
 
   const groups = useMemo(
@@ -36,11 +35,6 @@ export default function TrendingDealsSection() {
           <p className="mt-3 text-balance text-xs leading-relaxed text-stone-500 sm:text-sm">
             {TRENDING_DEAL_DISCLAIMER}
           </p>
-          {useApi && meta && (
-            <p className="mt-2 text-xs text-stone-500">
-              {formatTrendingDealMeta(meta)}
-            </p>
-          )}
         </div>
       </div>
 
