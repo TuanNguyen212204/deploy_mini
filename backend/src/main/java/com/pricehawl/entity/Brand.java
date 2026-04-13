@@ -1,3 +1,4 @@
+
 package com.pricehawl.entity;
 
 import jakarta.persistence.*;

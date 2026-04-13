@@ -8,11 +8,11 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface PriceRecordRepository extends JpaRepository<PriceRecord, Long> {
-
 
     @Query("""
         SELECT pr FROM PriceRecord pr
@@ -27,4 +27,8 @@ public interface PriceRecordRepository extends JpaRepository<PriceRecord, Long> 
         @Param("productId") UUID productId,
         @Param("sinceDate") LocalDateTime sinceDate
     );
+
+    Optional<PriceRecord> findTopByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
+
+    List<PriceRecord> findByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
 }
