@@ -3,7 +3,6 @@ package com.pricehawl.service;
 import com.pricehawl.dto.TrendingDealModels.DealScoreCalculation;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.ProductListing;
-import com.pricehawl.entity.ProductListingSignal;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -19,10 +18,11 @@ import java.util.Objects;
  */
 public final class TrendingDealEngine {
 
+    // Ưu tiên popularityScore (Product) làm trọng số chính thay cho trustScore cũ từ bảng Signal.
     private static final double W_DISCOUNT = 0.45;
-    private static final double W_TREND = 0.25;
-    private static final double W_TRUST = 0.15;
-    private static final double W_POP = 0.10;
+    private static final double W_POP = 0.25;
+    private static final double W_TREND = 0.20;
+    private static final double W_TRUST = 0.05;
     private static final double W_FRESH = 0.05;
 
     private TrendingDealEngine() {
@@ -30,7 +30,6 @@ public final class TrendingDealEngine {
 
     /* --- Eligibility (trước đây TrendingDealEligibility) --- */
 
-    public static final double MIN_TRUST_SCORE_INCLUSIVE = 0.50;
     public static final int MIN_PRICE_HISTORY_SPAN_DAYS = 7;
     public static final long SNAPSHOT_CACHE_TTL_SECONDS = 2L * 60 * 60;
     public static final int MIN_EXPLANATION_LENGTH = 40;
@@ -84,25 +83,9 @@ public final class TrendingDealEngine {
 
     public static boolean isEligibleForTrending(
             ProductListing p,
-            ProductListingSignal signal,
             List<PriceRecord> recs) {
 
         PriceRecord latest = latest(recs);
-        if (signal == null) {
-            return false;
-        }
-        if (Boolean.TRUE.equals(signal.getIsHijacked())) {
-            return false; // D4
-        }
-        if (Boolean.TRUE.equals(signal.getIsFakePromo())) {
-            return false; // S2
-        }
-        if (!STATUS_ACTIVE.equals(signal.getStatus())) {
-            return false; // D3 + AC-06
-        }
-        if (signal.getTrustScore() == null || signal.getTrustScore() < MIN_TRUST_SCORE_INCLUSIVE) {
-            return false; // D2 + AC-03
-        }
         return passesCoreListingRules(p)
                 && hasMinimumPriceHistorySpan(recs)
                 && hasInStockLatest(latest)
@@ -111,10 +94,9 @@ public final class TrendingDealEngine {
 
     public static boolean isEligibleOrganic(
             ProductListing listing,
-            ProductListingSignal signal,
             List<PriceRecord> recsDesc) {
 
-        if (!isEligibleForTrending(listing, signal, recsDesc)) {
+        if (!isEligibleForTrending(listing, recsDesc)) {
             return false;
         }
         HistoricalDiscountResult hist = computeHistoricalDiscount(recsDesc);
@@ -132,27 +114,6 @@ public final class TrendingDealEngine {
             return false; // S4
         }
         return true;
-    }
-
-    public static boolean isEligiblePinned(
-            ProductListing listing,
-            ProductListingSignal signal,
-            List<PriceRecord> recsDesc) {
-
-        if (signal == null || !Boolean.TRUE.equals(signal.getIsPinned())) {
-            return false;
-        }
-        // Admin pin (S5) vẫn phải tuân thủ các điều kiện cứng của AC-01/06 và hijacked.
-        if (Boolean.TRUE.equals(signal.getIsHijacked())) {
-            return false;
-        }
-        if (!STATUS_ACTIVE.equals(signal.getStatus())) {
-            return false;
-        }
-        PriceRecord latest = latest(recsDesc);
-        return passesCoreListingRules(listing)
-                && hasMinimumPriceHistorySpan(recsDesc)
-                && hasInStockLatest(latest);
     }
 
     public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
@@ -369,7 +330,6 @@ public final class TrendingDealEngine {
 
     public static DealScoreCalculation score(
             ProductListing listing,
-            ProductListingSignal signal,
             List<PriceRecord> recordsDesc) {
 
         PriceRecord latest = latest(recordsDesc);
@@ -381,12 +341,11 @@ public final class TrendingDealEngine {
         double discount = Math.min(1.0, Math.max(0.0, hist.discountPercent() / 100.0));
 
         double trend = calculateTrend(recordsDesc);
-        double trust = calculateTrust(signal != null ? signal.getTrustScore() : null);
+        double trust = calculateTrustFromHistory(recordsDesc);
         double popularity = calculatePopularity(listing != null && listing.getProduct() != null
                 ? listing.getProduct().getPopularityScore()
                 : null);
-        double freshness = calculateFreshness(
-                signal != null && signal.getCrawlTime() != null ? signal.getCrawlTime() : latest.getCrawledAt());
+        double freshness = calculateFreshness(latest.getCrawledAt());
 
         double total = W_DISCOUNT * discount
                 + W_TREND * trend
@@ -423,11 +382,19 @@ public final class TrendingDealEngine {
         return Math.min(1.0, Math.max(0.0, -slope / 10000.0));
     }
 
-    private static double calculateTrust(Double trustScore) {
-        if (trustScore == null) {
-            return 0.60;
+    private static double calculateTrustFromHistory(List<PriceRecord> recordsDesc) {
+        // Không còn bảng Signal: ước lượng trust từ độ dày & chất lượng lịch sử giá.
+        List<PriceRecord> asc = recordsAsc(recordsDesc);
+        if (asc.size() < 3) {
+            return 0.50;
         }
-        return Math.max(0.0, Math.min(1.0, trustScore));
+        long spanDays = ChronoUnit.DAYS.between(
+                asc.get(0).getCrawledAt().toLocalDate(),
+                asc.get(asc.size() - 1).getCrawledAt().toLocalDate());
+        double spanScore = Math.min(1.0, Math.max(0.0, (spanDays - 7.0) / 21.0)); // 7d->0, 28d->1
+        double densityScore = Math.min(1.0, asc.size() / 20.0);                   // 20 points -> 1
+        double base = 0.55;
+        return Math.max(0.0, Math.min(1.0, base + 0.25 * spanScore + 0.20 * densityScore));
     }
 
     private static double calculatePopularity(Integer popularity) {

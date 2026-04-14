@@ -4,7 +4,6 @@ import com.pricehawl.entity.PriceAlert;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.Product;
 import com.pricehawl.entity.ProductListing;
-import com.pricehawl.entity.ProductListingSignal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -56,10 +55,5 @@ public final class TrendingDealRepositories {
     public interface PriceAlertRepository extends JpaRepository<PriceAlert, UUID> {
 
         List<PriceAlert> findByUser_IdAndIsActiveTrue(UUID userId);
-    }
-
-    public interface ProductListingSignalRepository extends JpaRepository<ProductListingSignal, UUID> {
-
-        List<ProductListingSignal> findByListingIdIn(List<UUID> listingIds);
     }
 }

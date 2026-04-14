@@ -15,45 +15,37 @@ class TrendingDealEngineTest {
     @Test
     void rejectsWhenPriceSpanLessThanSevenDays() {
         ProductListing listing = baseListing();
-        ProductListingSignal signal = baseSignal(listing.getId());
         LocalDateTime t0 = LocalDateTime.now().minusDays(3);
         List<PriceRecord> recs = List.of(
                 price(listing, t0, 100_000),
                 price(listing, t0.plusDays(1), 99_000));
         assertFalse(TrendingDealEngine.hasMinimumPriceHistorySpan(recs));
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, signal, recs));
+        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, recs));
     }
 
     @Test
     void acceptsWhenPriceSpanAtLeastSevenDaysAndRulesOk() {
         ProductListing listing = baseListing();
-        ProductListingSignal signal = baseSignal(listing.getId());
         LocalDateTime t0 = LocalDateTime.now().minusDays(8);
         List<PriceRecord> recs = new ArrayList<>();
         for (int d = 0; d <= 8; d++) {
             recs.add(price(listing, t0.plusDays(d), 200_000 - d * 1_000));
         }
         assertTrue(TrendingDealEngine.hasMinimumPriceHistorySpan(recs));
-        assertTrue(TrendingDealEngine.isEligibleForTrending(listing, signal, recs));
+        assertTrue(TrendingDealEngine.isEligibleForTrending(listing, recs));
     }
 
     @Test
-    void rejectsFakePromoInactiveLowTrust() {
+    void rejectsWhenLikelyFakePromo() {
         ProductListing listing = baseListing();
-        List<PriceRecord> recs = List.of(price(listing, LocalDateTime.now().minusDays(8), 100_000),
-                price(listing, LocalDateTime.now(), 90_000));
-
-        ProductListingSignal signal = baseSignal(listing.getId());
-        signal.setIsFakePromo(true);
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, signal, recs));
-
-        signal = baseSignal(listing.getId());
-        signal.setStatus("INACTIVE");
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, signal, recs));
-
-        signal = baseSignal(listing.getId());
-        signal.setTrustScore(0.49);
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, signal, recs));
+        LocalDateTime t0 = LocalDateTime.now().minusDays(10);
+        List<PriceRecord> recs = new ArrayList<>();
+        for (int d = 0; d <= 7; d++) {
+            recs.add(price(listing, t0.plusDays(d), 200_000));
+        }
+        // "Cliff drop" về giá cực thấp ở cuối -> heuristic fake promo
+        recs.add(price(listing, t0.plusDays(8), 30_000));
+        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, recs));
     }
 
     private static ProductListing baseListing() {
@@ -63,18 +55,6 @@ class TrendingDealEngineTest {
                 .platform(samplePlatform())
                 .platformName("Shop")
                 .url("https://example.com/trend-test")
-                .build();
-    }
-
-    private static ProductListingSignal baseSignal(UUID listingId) {
-        return ProductListingSignal.builder()
-                .listingId(listingId)
-                .trustScore(0.9)
-                .status(TrendingDealEngine.STATUS_ACTIVE)
-                .isFakePromo(false)
-                .isHijacked(false)
-                .isPinned(false)
-                .crawlTime(LocalDateTime.now())
                 .build();
     }
 

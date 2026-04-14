@@ -70,8 +70,7 @@ public final class TrendingDealModels {
             ProductListing listing,
             DealScoreCalculation score,
             com.pricehawl.entity.PriceRecord latestPriceRecord,
-            List<com.pricehawl.entity.PriceRecord> priceRecordsDesc,
-            com.pricehawl.entity.ProductListingSignal signal
+            List<com.pricehawl.entity.PriceRecord> priceRecordsDesc
     ) {
     }
 }

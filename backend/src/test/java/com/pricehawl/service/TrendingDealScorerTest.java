@@ -23,17 +23,7 @@ class TrendingDealScorerTest {
                 .url("https://example.com/p")
                 .build();
 
-        ProductListingSignal signal = ProductListingSignal.builder()
-                .listingId(listing.getId())
-                .trustScore(0.9)
-                .status(TrendingDealEngine.STATUS_ACTIVE)
-                .isFakePromo(false)
-                .isHijacked(false)
-                .isPinned(false)
-                .crawlTime(LocalDateTime.now())
-                .build();
-
-        DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, List.of());
+        DealScoreCalculation calc = TrendingDealEngine.score(listing, List.of());
         assertEquals(0.0, calc.totalDealScore(), 1e-9);
     }
 
@@ -59,17 +49,8 @@ class TrendingDealScorerTest {
             pr.setProductListing(listing);
             history.add(pr);
         }
-        ProductListingSignal signal = ProductListingSignal.builder()
-                .listingId(listing.getId())
-                .trustScore(1.0)
-                .status(TrendingDealEngine.STATUS_ACTIVE)
-                .isFakePromo(false)
-                .isHijacked(false)
-                .isPinned(false)
-                .crawlTime(LocalDateTime.now())
-                .build();
 
-        DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, history);
+        DealScoreCalculation calc = TrendingDealEngine.score(listing, history);
         assertTrue(calc.totalDealScore() > 0);
         assertTrue(calc.discountScore() > 0);
     }

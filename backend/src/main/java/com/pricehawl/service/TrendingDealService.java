@@ -6,9 +6,7 @@ import com.pricehawl.dto.TrendingDealModels.TrendingDealResponse;
 import com.pricehawl.dto.TrendingDealModels.TrendingDealsSnapshot;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.ProductListing;
-import com.pricehawl.entity.ProductListingSignal;
 import com.pricehawl.repository.TrendingDealRepositories.PriceRecordRepository;
-import com.pricehawl.repository.TrendingDealRepositories.ProductListingSignalRepository;
 import com.pricehawl.repository.TrendingDealRepositories.TrendingDealRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,7 +28,6 @@ public class TrendingDealService {
 
     private final TrendingDealRepository trendingDealRepository;
     private final PriceRecordRepository priceRecordRepository;
-    private final ProductListingSignalRepository productListingSignalRepository;
 
     @Cacheable(cacheNames = "trendingDeals", key = "#expand")
     public TrendingDealsSnapshot getTrendingDealsSnapshot(boolean expand) {
@@ -40,41 +37,26 @@ public class TrendingDealService {
     private TrendingDealsSnapshot buildSnapshot(boolean expand) {
         Instant computedAt = Instant.now();
         List<ProductListing> candidates = trendingDealRepository.findTrendingCandidates();
-
-        List<UUID> listingIds = candidates.stream().map(ProductListing::getId).toList();
-        Map<UUID, ProductListingSignal> signals = productListingSignalRepository.findByListingIdIn(listingIds)
-                .stream()
-                .collect(Collectors.toMap(ProductListingSignal::getListingId, s -> s));
-
-        List<TrendingDealDTO> pinnedCandidates = new ArrayList<>();
         List<TrendingDealDTO> organicCandidates = new ArrayList<>();
 
         for (ProductListing listing : candidates) {
-            ProductListingSignal signal = signals.get(listing.getId());
             List<PriceRecord> recsDesc = priceRecordRepository
                     .findByProductListingIdOrderByCrawledAtDesc(listing.getId());
 
-            if (TrendingDealEngine.isEligiblePinned(listing, signal, recsDesc)) {
-                DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, recsDesc);
+            if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
+                DealScoreCalculation calc = TrendingDealEngine.score(listing, recsDesc);
                 PriceRecord latest = TrendingDealEngine.latest(recsDesc);
-                pinnedCandidates.add(new TrendingDealDTO(listing, calc, latest, recsDesc, signal));
-                continue;
-            }
-            if (TrendingDealEngine.isEligibleOrganic(listing, signal, recsDesc)) {
-                DealScoreCalculation calc = TrendingDealEngine.score(listing, signal, recsDesc);
-                PriceRecord latest = TrendingDealEngine.latest(recsDesc);
-                organicCandidates.add(new TrendingDealDTO(listing, calc, latest, recsDesc, signal));
+                organicCandidates.add(new TrendingDealDTO(listing, calc, latest, recsDesc));
             }
         }
 
-        List<TrendingDealDTO> scored = new ArrayList<>(pinnedCandidates.size() + organicCandidates.size());
-        scored.addAll(pinnedCandidates);
-        scored.addAll(organicCandidates);
+        List<TrendingDealDTO> scored = organicCandidates.stream()
+                .sorted(Comparator.comparing((TrendingDealDTO d) -> d.score().totalDealScore(), Comparator.reverseOrder()))
+                .toList();
 
         Map<UUID, List<TrendingDealDTO>> groupedByProduct = scored.stream()
                 .collect(Collectors.groupingBy(d -> d.listing().getProduct().getId()));
 
-        List<TrendingDealDTO> pinnedRepresentatives = new ArrayList<>();
         List<TrendingDealDTO> organicRepresentatives = new ArrayList<>();
         Map<UUID, Boolean> priceConflictByProduct = new HashMap<>();
 
@@ -84,16 +66,6 @@ public class TrendingDealService {
 
             priceConflictByProduct.put(productId, hasPriceConflict(group));
 
-            TrendingDealDTO pinned = group.stream()
-                    .filter(d -> d.signal() != null && Boolean.TRUE.equals(d.signal().getIsPinned()))
-                    .max(Comparator.comparing(d -> d.score().totalDealScore()))
-                    .orElse(null);
-
-            if (pinned != null) {
-                pinnedRepresentatives.add(pinned); // AC-04, AC-05
-                continue;
-            }
-
             TrendingDealDTO bestOrganic = group.stream()
                     .max(Comparator.comparing(d -> d.score().totalDealScore()))
                     .orElse(null);
@@ -102,25 +74,15 @@ public class TrendingDealService {
             }
         }
 
-        pinnedRepresentatives = pinnedRepresentatives.stream()
-                .sorted(Comparator.comparing(d -> d.score().totalDealScore(), Comparator.reverseOrder()))
-                .toList();
         organicRepresentatives = organicRepresentatives.stream()
                 .sorted(Comparator.comparing(d -> d.score().totalDealScore(), Comparator.reverseOrder()))
                 .toList();
 
-        List<TrendingDealDTO> representatives = new ArrayList<>(pinnedRepresentatives.size() + organicRepresentatives.size());
-        representatives.addAll(pinnedRepresentatives);
-        representatives.addAll(organicRepresentatives);
-
-        List<TrendingDealDTO> finalList = representatives;
+        List<TrendingDealDTO> finalList = organicRepresentatives;
 
         List<TrendingDealResponse> body;
         if (expand) {
             body = scored.stream()
-                    .sorted(Comparator
-                            .comparing((TrendingDealDTO d) -> d.signal() == null || !Boolean.TRUE.equals(d.signal().getIsPinned()))
-                            .thenComparing(d -> d.score().totalDealScore(), Comparator.reverseOrder()))
                     .map(d -> mapToResponse(d, priceConflictByProduct.get(d.listing().getProduct().getId())))
                     .toList();
         } else {
@@ -173,9 +135,7 @@ public class TrendingDealService {
 
     private TrendingDealResponse mapToResponse(TrendingDealDTO dto, Boolean priceConflict) {
         TrendingDealResponse res = mapToResponse(dto.listing(), dto.score());
-        boolean pinned = dto.signal() != null && Boolean.TRUE.equals(dto.signal().getIsPinned());
-        res.setPinned(pinned);
-        res.setBadge(pinned ? "PINNED" : res.getBadge());
+        res.setPinned(false);
         boolean conflict = Boolean.TRUE.equals(priceConflict);
         res.setPriceConflict(conflict);
         res.setPriceConflictMessage(conflict ? "Có chênh lệch giá giữa các shop/sàn" : null);
