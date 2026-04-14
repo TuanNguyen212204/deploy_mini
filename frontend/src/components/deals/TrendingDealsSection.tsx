@@ -7,6 +7,7 @@ import {
 import { prepareTrendingDealGroups } from '../../util/trendingDealPrepare'
 import { useTrendingDeals } from '../../util/useTrendingDeals'
 import { TrendingDealGroupBlock } from './TrendingDealGroupBlock'
+import { TrendingDealRow } from './TrendingDealRow'
 
 export default function TrendingDealsSection() {
   const { deals, loading } = useTrendingDeals()
@@ -63,8 +64,18 @@ export default function TrendingDealsSection() {
         </ul>
       )}
 
-      {!loading && groups.length === 0 && (
-        <p className="mt-8 text-sm text-stone-500">Chưa có deal trending để hiển thị.</p>
+      {!loading && groups.length === 0 && list.length > 0 && (
+        <ul className="mt-8 space-y-6">
+          {list.map((d) => (
+            <li key={d.listingId}>
+              <TrendingDealRow d={d} />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!loading && groups.length === 0 && list.length === 0 && (
+        <p className="mt-8 text-sm text-stone-500">Không có kết quả phù hợp.</p>
       )}
     </section>
   )

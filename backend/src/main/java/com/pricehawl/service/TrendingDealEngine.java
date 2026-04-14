@@ -30,13 +30,16 @@ public final class TrendingDealEngine {
 
     /* --- Eligibility (trước đây TrendingDealEligibility) --- */
 
-    public static final int MIN_PRICE_HISTORY_SPAN_DAYS = 7;
+    // Nếu dữ liệu mới chỉ có vài record (cùng ngày), điều kiện span ngày > 0 sẽ khiến API trả [].
+    // Nới xuống 0 ngày: chỉ cần có lịch sử (>=1 record) là được xét, còn chất lượng deal sẽ phản ánh qua scoring.
+    public static final int MIN_PRICE_HISTORY_SPAN_DAYS = 0;
     public static final long SNAPSHOT_CACHE_TTL_SECONDS = 2L * 60 * 60;
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
-    public static final float MIN_REAL_DISCOUNT_PCT_INCLUSIVE = 10f; // S1
-    public static final double MIN_TREND_SCORE_INCLUSIVE = 0.20;     // S3 (heuristic)
-    public static final int MIN_POPULARITY_SCORE_INCLUSIVE = 50;     // S4 (heuristic)
+    // Nới lỏng eligibility để không trả về rỗng khi DB mới/ít lịch sử.
+    // Scoring vẫn ưu tiên popularityScore, discount và trend.
+    public static final float MIN_REAL_DISCOUNT_PCT_INCLUSIVE = 1f; // tạm nới để dễ thấy dữ liệu
+    public static final int MIN_POPULARITY_SCORE_INCLUSIVE = 0;      // fallback: không chặn theo popularity
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
     public static final double FAKE_PROMO_HISTORICAL_LOW_DISCOUNT_PCT = 18.0;
@@ -96,24 +99,62 @@ public final class TrendingDealEngine {
             ProductListing listing,
             List<PriceRecord> recsDesc) {
 
-        if (!isEligibleForTrending(listing, recsDesc)) {
-            return false;
+        boolean result = true;
+        String reason = "OK";
+
+        if (listing == null) {
+            result = false;
+            reason = "listing=null";
         }
-        HistoricalDiscountResult hist = computeHistoricalDiscount(recsDesc);
-        if (hist.discountPercent() < MIN_REAL_DISCOUNT_PCT_INCLUSIVE) {
-            return false; // S1
+
+        PriceRecord latest = result ? latest(recsDesc) : null;
+        if (result && !passesCoreListingRules(listing)) {
+            result = false;
+            reason = "platform_inactive_or_blocked";
         }
-        double trend = calculateTrend(recsDesc);
-        if (trend < MIN_TREND_SCORE_INCLUSIVE) {
-            return false; // S3
+        if (result && !hasMinimumPriceHistorySpan(recsDesc)) {
+            result = false;
+            reason = "insufficient_price_history_span(days<" + MIN_PRICE_HISTORY_SPAN_DAYS + ")";
         }
-        int pop = listing != null && listing.getProduct() != null && listing.getProduct().getPopularityScore() != null
-                ? listing.getProduct().getPopularityScore()
-                : 0;
-        if (pop < MIN_POPULARITY_SCORE_INCLUSIVE) {
-            return false; // S4
+        if (result && !hasInStockLatest(latest)) {
+            result = false;
+            reason = "out_of_stock_or_missing_latest";
         }
-        return true;
+        if (result && isLikelyFakePromo(recsDesc)) {
+            result = false;
+            reason = "likely_fake_promo_heuristic";
+        }
+
+        // DB mới/ít lịch sử: cho phép lên UI ngay cả khi chỉ có 1 record giá.
+        // Khi đủ dữ liệu (>=2 record), áp ngưỡng giảm giá tối thiểu.
+        if (result) {
+            int n = recsDesc == null ? 0 : recsDesc.size();
+            if (n >= 2) {
+                HistoricalDiscountResult hist = computeHistoricalDiscount(recsDesc);
+                if (hist.discountPercent() < MIN_REAL_DISCOUNT_PCT_INCLUSIVE) {
+                    result = false; // S1
+                    reason = "discount_too_low(" + hist.discountPercent() + "%<" + MIN_REAL_DISCOUNT_PCT_INCLUSIVE + "%)";
+                }
+            } else {
+                reason = "OK(min_history_records=" + n + ", skip_discount_threshold)";
+            }
+        }
+
+        if (result) {
+            int pop = listing.getProduct() != null && listing.getProduct().getPopularityScore() != null
+                    ? listing.getProduct().getPopularityScore()
+                    : 0;
+            if (pop < MIN_POPULARITY_SCORE_INCLUSIVE) {
+                result = false; // S4
+                reason = "popularity_too_low(" + pop + "<" + MIN_POPULARITY_SCORE_INCLUSIVE + ")";
+            }
+        }
+
+        System.out.println("Kiểm tra listing: " + (listing == null ? "null" : listing.getId()) + " - Eligible: " + result);
+        if (!result) {
+            System.out.println("  Lý do loại: " + reason);
+        }
+        return result;
     }
 
     public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
@@ -401,7 +442,8 @@ public final class TrendingDealEngine {
         if (popularity == null || popularity <= 0) {
             return 0.0;
         }
-        return Math.min(1.0, popularity / 10000.0);
+        // Thang điểm DB 0–100 → normalize về 0–1.
+        return Math.min(1.0, popularity / 100.0);
     }
 
     private static double calculateFreshness(LocalDateTime crawlTime) {

@@ -7,7 +7,10 @@ import type { TrendingDealDto, TrendingDealsApiMeta } from '../types/trendingDea
  */
 export function getApiBaseUrl(): string {
   const v = import.meta.env.VITE_API_BASE_URL as string | undefined
-  return (v && v.replace(/\/$/, '')) || ''
+  const normalized = v != null ? String(v).trim().replace(/\/$/, '') : ''
+  // Nếu không dùng proxy Vite (/api → :8080), hãy set VITE_API_BASE_URL=http://localhost:8080.
+  // Fallback dev: cho phép gọi thẳng backend khi chạy ở :5173 và không cấu hình proxy.
+  return normalized || 'http://localhost:8080'
 }
 
 /**
@@ -43,6 +46,7 @@ function optionalScore(v: unknown): number | undefined {
 }
 
 function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
+  console.log('Raw deal from API:', raw)
   const pinned =
     typeof raw.pinned === 'boolean'
       ? raw.pinned
