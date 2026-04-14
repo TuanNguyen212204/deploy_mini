@@ -13,39 +13,48 @@ import static org.junit.jupiter.api.Assertions.*;
 class TrendingDealEngineTest {
 
     @Test
-    void rejectsWhenPriceSpanLessThanSevenDays() {
+    void rejectsWhenDiscountNotGreaterThanTenPct() {
         ProductListing listing = baseListing();
-        LocalDateTime t0 = LocalDateTime.now().minusDays(3);
+        LocalDateTime t0 = LocalDateTime.now().minusHours(1);
         List<PriceRecord> recs = List.of(
-                price(listing, t0, 100_000),
-                price(listing, t0.plusDays(1), 99_000));
-        assertFalse(TrendingDealEngine.hasMinimumPriceHistorySpan(recs));
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, recs));
+                price(listing, t0, 100_000, 105_000, 5f));
+        assertFalse(TrendingDealEngine.isEligibleOrganic(listing, recs));
     }
 
     @Test
-    void acceptsWhenPriceSpanAtLeastSevenDaysAndRulesOk() {
+    void acceptsWhenMeetsEligibilityRules() {
         ProductListing listing = baseListing();
-        LocalDateTime t0 = LocalDateTime.now().minusDays(8);
-        List<PriceRecord> recs = new ArrayList<>();
-        for (int d = 0; d <= 8; d++) {
-            recs.add(price(listing, t0.plusDays(d), 200_000 - d * 1_000));
-        }
-        assertTrue(TrendingDealEngine.hasMinimumPriceHistorySpan(recs));
-        assertTrue(TrendingDealEngine.isEligibleForTrending(listing, recs));
+        LocalDateTime t0 = LocalDateTime.now().minusHours(1);
+        List<PriceRecord> recs = List.of(
+                price(listing, t0, 100_000, 120_000, 16.7f));
+        assertTrue(TrendingDealEngine.isEligibleOrganic(listing, recs));
     }
 
     @Test
-    void rejectsWhenLikelyFakePromo() {
+    void rejectsWhenPopularityNotGreaterThanSixty() {
+        ProductListing listing = baseListingWithPopularity(60);
+        LocalDateTime t0 = LocalDateTime.now().minusHours(1);
+        List<PriceRecord> recs = List.of(
+                price(listing, t0, 100_000, 120_000, 16.7f));
+        assertFalse(TrendingDealEngine.isEligibleOrganic(listing, recs));
+    }
+
+    @Test
+    void rejectsWhenTrustScoreBelowPointFive() {
+        ProductListing listing = baseListingWithTrust(0.49);
+        LocalDateTime t0 = LocalDateTime.now().minusHours(1);
+        List<PriceRecord> recs = List.of(
+                price(listing, t0, 100_000, 120_000, 16.7f));
+        assertFalse(TrendingDealEngine.isEligibleOrganic(listing, recs));
+    }
+
+    @Test
+    void doesNotCrashWhenFlashSaleIsNull() {
         ProductListing listing = baseListing();
-        LocalDateTime t0 = LocalDateTime.now().minusDays(10);
-        List<PriceRecord> recs = new ArrayList<>();
-        for (int d = 0; d <= 7; d++) {
-            recs.add(price(listing, t0.plusDays(d), 200_000));
-        }
-        // "Cliff drop" về giá cực thấp ở cuối -> heuristic fake promo
-        recs.add(price(listing, t0.plusDays(8), 30_000));
-        assertFalse(TrendingDealEngine.isEligibleForTrending(listing, recs));
+        LocalDateTime t0 = LocalDateTime.now().minusHours(1);
+        PriceRecord pr = price(listing, t0, 100_000, 120_000, 16.7f);
+        pr.setIsFlashSale(null);
+        assertTrue(TrendingDealEngine.isEligibleOrganic(listing, List.of(pr)));
     }
 
     private static ProductListing baseListing() {
@@ -55,7 +64,23 @@ class TrendingDealEngineTest {
                 .platform(samplePlatform())
                 .platformName("Shop")
                 .url("https://example.com/trend-test")
+                .trustScore(0.50)
+                .isPinned(false)
                 .build();
+    }
+
+    private static ProductListing baseListingWithPopularity(int popularityScore) {
+        Product p = sampleProduct();
+        p.setPopularityScore(popularityScore);
+        ProductListing l = baseListing();
+        l.setProduct(p);
+        return l;
+    }
+
+    private static ProductListing baseListingWithTrust(double trustScore) {
+        ProductListing l = baseListing();
+        l.setTrustScore(trustScore);
+        return l;
     }
 
     private static Product sampleProduct() {
@@ -74,11 +99,11 @@ class TrendingDealEngineTest {
         return Platform.builder().id(1).name("Hasaki").build();
     }
 
-    private static PriceRecord price(ProductListing listing, LocalDateTime at, int price) {
+    private static PriceRecord price(ProductListing listing, LocalDateTime at, int price, int originalPrice, float discountPct) {
         PriceRecord pr = PriceRecord.builder()
                 .price(price)
-                .originalPrice(price + 10_000)
-                .discountPct(5f)
+                .originalPrice(originalPrice)
+                .discountPct(discountPct)
                 .inStock(true)
                 .crawledAt(at)
                 .build();

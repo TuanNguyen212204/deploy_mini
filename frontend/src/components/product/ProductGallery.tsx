@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Badge from '../common/Badge';
 
 const FALLBACK_IMG =

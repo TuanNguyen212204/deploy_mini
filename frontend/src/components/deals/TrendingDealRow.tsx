@@ -2,19 +2,23 @@ import { Link } from 'react-router-dom'
 import type { TrendingDealDto } from '../../types/trendingDeal'
 import {
   TRENDING_DEAL_FONT_STACK,
-  TRENDING_DEAL_PLACEHOLDER_IMG,
   formatTrendingDealVnd,
   trendingDealBadgeClass,
 } from '../../util/trendingDealFormat'
 import { TrendingDealScoreBreakdown } from './TrendingDealScoreBreakdown'
+import { useState } from 'react'
 
 export function TrendingDealRow({
   d,
   nested = false,
+  onImageError,
 }: {
   d: TrendingDealDto
   nested?: boolean
+  onImageError?: (listingId: string) => void
 }) {
+  const [imgBroken, setImgBroken] = useState(false)
+  const hasImg = Boolean(d.imageUrl && String(d.imageUrl).trim().length > 0)
   return (
     <div className={nested ? 'max-w-full' : ''}>
       <Link
@@ -31,11 +35,21 @@ export function TrendingDealRow({
               nested ? 'h-20 w-20' : 'h-24 w-24'
             }`}
           >
-            <img
-              src={d.imageUrl || TRENDING_DEAL_PLACEHOLDER_IMG}
-              alt=""
-              className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
-            />
+            {hasImg && !imgBroken ? (
+              <img
+                src={String(d.imageUrl)}
+                alt=""
+                onError={() => {
+                  setImgBroken(true)
+                  onImageError?.(d.listingId)
+                }}
+                className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
+              />
+            ) : (
+              <span className="px-2 text-center text-[11px] font-medium text-stone-500">
+                Lỗi hiển thị
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <span
@@ -50,7 +64,9 @@ export function TrendingDealRow({
               {d.productName}
             </h3>
             <p className="mt-1 text-xs text-stone-500">{d.platformName}</p>
-            <p className="mt-2 text-xs text-stone-600">{d.explanation}</p>
+            <p className="mt-2 whitespace-pre-line text-xs text-stone-600">
+              {d.explanation}
+            </p>
             <TrendingDealScoreBreakdown d={d} />
           </div>
         </div>

@@ -61,10 +61,6 @@ function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
       raw.variantKey != null && raw.variantKey !== ''
         ? String(raw.variantKey)
         : undefined,
-    category:
-      raw.category != null && raw.category !== ''
-        ? String(raw.category)
-        : undefined,
     productName: String(raw.productName ?? ''),
     imageUrl: raw.imageUrl != null ? String(raw.imageUrl) : null,
     platformName: String(raw.platformName ?? ''),
@@ -72,12 +68,12 @@ function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
     originalPrice:
       raw.originalPrice == null ? null : Number(raw.originalPrice),
     discountPercent: Number(raw.discountPercent ?? 0),
+    isFlashSale: typeof raw.isFlashSale === 'boolean' ? raw.isFlashSale : undefined,
     dealScore: Number(raw.dealScore ?? 0),
     badge: String(raw.badge ?? ''),
     explanation: String(raw.explanation ?? ''),
     pinned,
     discountScore: optionalScore(raw.discountScore),
-    trendScore: optionalScore(raw.trendScore),
     trustScore: optionalScore(raw.trustScore),
     popularityScore: optionalScore(raw.popularityScore),
     freshnessScore: optionalScore(raw.freshnessScore),

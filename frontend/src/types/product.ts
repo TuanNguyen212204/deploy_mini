@@ -50,7 +50,7 @@ export type Product = {
   model: string;
   category: string;
   subcategory?: string;
-  images: string;
+  images: string[];
   description: string;
   specs: ProductSpecMap;
   rating: number;

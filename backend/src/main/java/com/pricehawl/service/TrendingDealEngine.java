@@ -18,11 +18,10 @@ import java.util.Objects;
  */
 public final class TrendingDealEngine {
 
-    // Ưu tiên popularityScore (Product) làm trọng số chính thay cho trustScore cũ từ bảng Signal.
+    // DealScore = 0.45 * DiscountScore + 0.25 * TrustScore + 0.25 * PopularityScore + 0.05 * FreshnessScore
     private static final double W_DISCOUNT = 0.45;
+    private static final double W_TRUST = 0.25;
     private static final double W_POP = 0.25;
-    private static final double W_TREND = 0.20;
-    private static final double W_TRUST = 0.05;
     private static final double W_FRESH = 0.05;
 
     private TrendingDealEngine() {
@@ -30,16 +29,12 @@ public final class TrendingDealEngine {
 
     /* --- Eligibility (trước đây TrendingDealEligibility) --- */
 
-    // Nếu dữ liệu mới chỉ có vài record (cùng ngày), điều kiện span ngày > 0 sẽ khiến API trả [].
-    // Nới xuống 0 ngày: chỉ cần có lịch sử (>=1 record) là được xét, còn chất lượng deal sẽ phản ánh qua scoring.
-    public static final int MIN_PRICE_HISTORY_SPAN_DAYS = 0;
     public static final long SNAPSHOT_CACHE_TTL_SECONDS = 2L * 60 * 60;
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
-    // Nới lỏng eligibility để không trả về rỗng khi DB mới/ít lịch sử.
-    // Scoring vẫn ưu tiên popularityScore, discount và trend.
-    public static final float MIN_REAL_DISCOUNT_PCT_INCLUSIVE = 1f; // tạm nới để dễ thấy dữ liệu
-    public static final int MIN_POPULARITY_SCORE_INCLUSIVE = 0;      // fallback: không chặn theo popularity
+    public static final float MIN_DISCOUNT_PCT_EXCLUSIVE = 10f;
+    public static final int MIN_POPULARITY_SCORE_EXCLUSIVE = 60;
+    public static final double MIN_TRUST_SCORE_INCLUSIVE = 0.50;
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
     public static final double FAKE_PROMO_HISTORICAL_LOW_DISCOUNT_PCT = 18.0;
@@ -61,25 +56,6 @@ public final class TrendingDealEngine {
         return p.getPlatform() == null || !Boolean.FALSE.equals(p.getPlatform().getIsActive());
     }
 
-    public static boolean hasMinimumPriceHistorySpan(List<PriceRecord> recs) {
-        if (recs == null || recs.isEmpty()) {
-            return false;
-        }
-        LocalDateTime min = recs.stream()
-                .map(PriceRecord::getCrawledAt)
-                .min(LocalDateTime::compareTo)
-                .orElse(null);
-        LocalDateTime max = recs.stream()
-                .map(PriceRecord::getCrawledAt)
-                .max(LocalDateTime::compareTo)
-                .orElse(null);
-        if (min == null || max == null) {
-            return false;
-        }
-        long days = ChronoUnit.DAYS.between(min.toLocalDate(), max.toLocalDate());
-        return days >= MIN_PRICE_HISTORY_SPAN_DAYS;
-    }
-
     public static boolean hasInStockLatest(PriceRecord latest) {
         return latest != null && Boolean.TRUE.equals(latest.getInStock());
     }
@@ -90,7 +66,6 @@ public final class TrendingDealEngine {
 
         PriceRecord latest = latest(recs);
         return passesCoreListingRules(p)
-                && hasMinimumPriceHistorySpan(recs)
                 && hasInStockLatest(latest)
                 && !isLikelyFakePromo(recs);
     }
@@ -99,62 +74,44 @@ public final class TrendingDealEngine {
             ProductListing listing,
             List<PriceRecord> recsDesc) {
 
-        boolean result = true;
-        String reason = "OK";
-
-        if (listing == null) {
-            result = false;
-            reason = "listing=null";
+        if (listing == null || !passesCoreListingRules(listing)) {
+            return false;
         }
 
-        PriceRecord latest = result ? latest(recsDesc) : null;
-        if (result && !passesCoreListingRules(listing)) {
-            result = false;
-            reason = "platform_inactive_or_blocked";
-        }
-        if (result && !hasMinimumPriceHistorySpan(recsDesc)) {
-            result = false;
-            reason = "insufficient_price_history_span(days<" + MIN_PRICE_HISTORY_SPAN_DAYS + ")";
-        }
-        if (result && !hasInStockLatest(latest)) {
-            result = false;
-            reason = "out_of_stock_or_missing_latest";
-        }
-        if (result && isLikelyFakePromo(recsDesc)) {
-            result = false;
-            reason = "likely_fake_promo_heuristic";
+        PriceRecord latest = latest(recsDesc);
+        if (latest == null) {
+            return false;
         }
 
-        // DB mới/ít lịch sử: cho phép lên UI ngay cả khi chỉ có 1 record giá.
-        // Khi đủ dữ liệu (>=2 record), áp ngưỡng giảm giá tối thiểu.
-        if (result) {
-            int n = recsDesc == null ? 0 : recsDesc.size();
-            if (n >= 2) {
-                HistoricalDiscountResult hist = computeHistoricalDiscount(recsDesc);
-                if (hist.discountPercent() < MIN_REAL_DISCOUNT_PCT_INCLUSIVE) {
-                    result = false; // S1
-                    reason = "discount_too_low(" + hist.discountPercent() + "%<" + MIN_REAL_DISCOUNT_PCT_INCLUSIVE + "%)";
-                }
-            } else {
-                reason = "OK(min_history_records=" + n + ", skip_discount_threshold)";
-            }
+        // Eligibility theo yêu cầu:
+        // - PriceRecord: discountPct > 10%, inStock == true, và xử lý isFlashSale null-safe
+        // - Product: popularityScore > 60
+        // - ProductListing: trustScore >= 0.50
+        if (!hasInStockLatest(latest)) {
+            return false;
+        }
+        // "kiểm tra cả isFlashSale": chỉ đảm bảo đọc field an toàn (null -> false)
+        // đọc isFlashSale null-safe để tránh NPE (không thêm điều kiện loại)
+        Boolean.TRUE.equals(latest.getIsFlashSale());
+
+        float discountPct = (float) platformDiscountPct(latest);
+        if (!(discountPct > MIN_DISCOUNT_PCT_EXCLUSIVE)) {
+            return false;
         }
 
-        if (result) {
-            int pop = listing.getProduct() != null && listing.getProduct().getPopularityScore() != null
-                    ? listing.getProduct().getPopularityScore()
-                    : 0;
-            if (pop < MIN_POPULARITY_SCORE_INCLUSIVE) {
-                result = false; // S4
-                reason = "popularity_too_low(" + pop + "<" + MIN_POPULARITY_SCORE_INCLUSIVE + ")";
-            }
+        Integer popRaw = listing.getProduct() != null ? listing.getProduct().getPopularityScore() : null;
+        int popularity = popRaw == null ? 0 : popRaw;
+        if (!(popularity > MIN_POPULARITY_SCORE_EXCLUSIVE)) {
+            return false;
         }
 
-        System.out.println("Kiểm tra listing: " + (listing == null ? "null" : listing.getId()) + " - Eligible: " + result);
-        if (!result) {
-            System.out.println("  Lý do loại: " + reason);
+        Double trustRaw = listing.getTrustScore();
+        double trust = trustRaw == null ? 0.0 : trustRaw;
+        if (trust < MIN_TRUST_SCORE_INCLUSIVE) {
+            return false;
         }
-        return result;
+
+        return true;
     }
 
     public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
@@ -195,6 +152,9 @@ public final class TrendingDealEngine {
     }
 
     static double platformDiscountPct(PriceRecord r) {
+        if (r == null) {
+            return 0.0;
+        }
         if (r.getDiscountPct() != null && r.getDiscountPct() >= 0) {
             return r.getDiscountPct();
         }
@@ -378,64 +338,29 @@ public final class TrendingDealEngine {
             return DealScoreCalculation.zero();
         }
 
-        HistoricalDiscountResult hist = computeHistoricalDiscount(recordsDesc);
-        double discount = Math.min(1.0, Math.max(0.0, hist.discountPercent() / 100.0));
+        double discountScore = Math.min(1.0, Math.max(0.0, platformDiscountPct(latest) / 100.0));
 
-        double trend = calculateTrend(recordsDesc);
-        double trust = calculateTrustFromHistory(recordsDesc);
-        double popularity = calculatePopularity(listing != null && listing.getProduct() != null
+        double trustScore = normalizeTrust(listing != null ? listing.getTrustScore() : null);
+        double popularityScore = calculatePopularity(listing != null && listing.getProduct() != null
                 ? listing.getProduct().getPopularityScore()
                 : null);
-        double freshness = calculateFreshness(latest.getCrawledAt());
+        double freshnessScore = calculateFreshnessTiered(latest.getCrawledAt());
+        double total = W_DISCOUNT * discountScore
+                + W_TRUST * trustScore
+                + W_POP * popularityScore
+                + W_FRESH * freshnessScore;
 
-        double total = W_DISCOUNT * discount
-                + W_TREND * trend
-                + W_TRUST * trust
-                + W_POP * popularity
-                + W_FRESH * freshness;
-
-        return new DealScoreCalculation(discount, trend, trust, popularity, freshness, total);
+        return new DealScoreCalculation(discountScore, trustScore, popularityScore, freshnessScore, total);
     }
 
-    private static double calculateTrend(List<PriceRecord> recordsDesc) {
-        if (recordsDesc == null || recordsDesc.size() < 3) {
+    private static double normalizeTrust(Double trust) {
+        if (trust == null) {
             return 0.0;
         }
-        List<PriceRecord> records = recordsAsc(recordsDesc);
-        if (records.size() < 3) {
+        if (Double.isNaN(trust) || Double.isInfinite(trust)) {
             return 0.0;
         }
-        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-        int n = records.size();
-        for (int i = 0; i < n; i++) {
-            double x = i;
-            double y = records.get(i).getPrice();
-            sumX += x;
-            sumY += y;
-            sumXY += x * y;
-            sumX2 += x * x;
-        }
-        double denom = n * sumX2 - sumX * sumX;
-        if (denom == 0) {
-            return 0.0;
-        }
-        double slope = (n * sumXY - sumX * sumY) / denom;
-        return Math.min(1.0, Math.max(0.0, -slope / 10000.0));
-    }
-
-    private static double calculateTrustFromHistory(List<PriceRecord> recordsDesc) {
-        // Không còn bảng Signal: ước lượng trust từ độ dày & chất lượng lịch sử giá.
-        List<PriceRecord> asc = recordsAsc(recordsDesc);
-        if (asc.size() < 3) {
-            return 0.50;
-        }
-        long spanDays = ChronoUnit.DAYS.between(
-                asc.get(0).getCrawledAt().toLocalDate(),
-                asc.get(asc.size() - 1).getCrawledAt().toLocalDate());
-        double spanScore = Math.min(1.0, Math.max(0.0, (spanDays - 7.0) / 21.0)); // 7d->0, 28d->1
-        double densityScore = Math.min(1.0, asc.size() / 20.0);                   // 20 points -> 1
-        double base = 0.55;
-        return Math.max(0.0, Math.min(1.0, base + 0.25 * spanScore + 0.20 * densityScore));
+        return Math.max(0.0, Math.min(1.0, trust));
     }
 
     private static double calculatePopularity(Integer popularity) {
@@ -446,15 +371,24 @@ public final class TrendingDealEngine {
         return Math.min(1.0, popularity / 100.0);
     }
 
-    private static double calculateFreshness(LocalDateTime crawlTime) {
+    private static double calculateFreshnessTiered(LocalDateTime crawlTime) {
         if (crawlTime == null) {
             return 0.0;
         }
-        long hours = ChronoUnit.HOURS.between(crawlTime, LocalDateTime.now());
-        if (hours <= 2) {
-            return 1.0;
+        long minutes = ChronoUnit.MINUTES.between(crawlTime, LocalDateTime.now());
+        if (minutes < 0) {
+            minutes = 0;
         }
-        return Math.max(0.0, 1.0 - (hours - 2) / 48.0);
+        if (minutes < 2L * 60) {       // < 2 giờ
+            return 1.00;
+        }
+        if (minutes < 6L * 60) {       // 2–6 giờ
+            return 0.80;
+        }
+        if (minutes < 12L * 60) {      // 6–12 giờ
+            return 0.60;
+        }
+        return 0.40;                   // >= 12 giờ
     }
 
     public static final class Explanations {
@@ -470,22 +404,14 @@ public final class TrendingDealEngine {
                 float realDiscountPct,
                 PriceRecord latest) {
 
-            StringBuilder sb = new StringBuilder(160);
-            sb.append(String.format(Locale.ROOT,
-                    "Giảm khoảng %.0f%% so với giá tham chiếu từ lịch sử (tránh giá gốc sàn thổi phồng).",
-                    realDiscountPct));
-            sb.append(" Xu hướng tính trên lịch sử tối thiểu 7 ngày.");
-            if (latest != null && latest.getCrawledAt() != null) {
-                sb.append(" Cập nhật giá gần nhất: ").append(VI_TIME.format(latest.getCrawledAt())).append('.');
-            }
-            sb.append(String.format(Locale.ROOT,
-                    " Điểm deal tổng %.2f (ưu tiên giảm thật / xu hướng / tin cậy).",
-                    calc.totalDealScore()));
-            String text = sb.toString().trim();
-            if (text.length() < MIN_EXPLANATION_LENGTH) {
-                text = text + " Deal đạt tiêu chí trending: không khuyến mãi ảo, listing đang hoạt động, còn hàng.";
-            }
-            return text;
+            // Yêu cầu: chỉ giữ 2 dòng thông tin.
+            String line1 = String.format(Locale.ROOT,
+                    "Giảm khoảng %.0f%% so với giá gốc hiện tại.",
+                    realDiscountPct);
+            String line2 = latest != null && latest.getCrawledAt() != null
+                    ? "Cập nhật giá gần nhất: " + VI_TIME.format(latest.getCrawledAt()) + '.'
+                    : "Cập nhật giá gần nhất: —";
+            return (line1 + "\n" + line2).trim();
         }
     }
 

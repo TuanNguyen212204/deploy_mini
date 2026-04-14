@@ -1,4 +1,3 @@
-import React from 'react';
 import { Eye, ShieldAlert, TrendingDown, Wallet } from 'lucide-react';
 import type { PriceInsight } from '../../types/product';
 

@@ -33,6 +33,7 @@ public final class TrendingDealModels {
         private Integer currentPrice;
         private Integer originalPrice;
         private Float discountPercent;
+        private Boolean isFlashSale;
         private Double dealScore;
         private String badge;
         private String explanation;
@@ -40,7 +41,6 @@ public final class TrendingDealModels {
         private Boolean priceConflict;
         private String priceConflictMessage;
         private Double discountScore;
-        private Double trendScore;
         private Double trustScore;
         private Double popularityScore;
         private Double freshnessScore;
@@ -55,14 +55,13 @@ public final class TrendingDealModels {
 
     public record DealScoreCalculation(
             double discountScore,
-            double trendScore,
             double trustScore,
             double popularityScore,
             double freshnessScore,
             double totalDealScore
     ) {
         public static DealScoreCalculation zero() {
-            return new DealScoreCalculation(0, 0, 0, 0, 0, 0);
+            return new DealScoreCalculation(0, 0, 0, 0, 0);
         }
     }
 

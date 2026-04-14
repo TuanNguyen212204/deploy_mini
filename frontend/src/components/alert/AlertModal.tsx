@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, CheckCheck, X } from 'lucide-react';
+import { CheckCheck, X } from 'lucide-react';
 import Badge from '../common/Badge';
 import type { Platform } from '../../types/product';
 import type { AlertChannel } from '../../types/alert';

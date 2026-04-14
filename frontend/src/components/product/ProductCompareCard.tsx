@@ -76,7 +76,7 @@ export default function ProductCompareCard({
         <Link to={`/product/${product.id}`} className="flex min-w-0 gap-5 lg:flex-1">
           <div className="relative h-36 w-28 shrink-0 overflow-hidden rounded-[26px] bg-[#ECE4DA]">
             <img
-              src={product.images}
+              src={product.images[0] ?? ''}
               alt={product.name}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
             />

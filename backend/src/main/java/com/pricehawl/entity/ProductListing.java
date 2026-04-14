@@ -40,6 +40,20 @@ public class ProductListing {
     @Column(length = 500)
     private String platformImageUrl;
 
+    /**
+     * Điểm tin cậy listing (0.0–1.0). Dùng cho Trending Deals & dedup.
+     */
+    @Column(name = "trust_score", nullable = false)
+    @Builder.Default
+    private Double trustScore = 0.50;
+
+    /**
+     * Listing được pin thủ công để ưu tiên hiển thị.
+     */
+    @Column(name = "is_pinned", nullable = false)
+    @Builder.Default
+    private Boolean isPinned = false;
+
     @OneToMany(mappedBy = "productListing", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<PriceRecord> priceRecords = new ArrayList<>();

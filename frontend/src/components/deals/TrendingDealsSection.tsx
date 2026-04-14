@@ -1,24 +1,48 @@
 import { useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import {
   TRENDING_DEAL_DISCLAIMER,
   TRENDING_DEAL_FONT_STACK,
 } from '../../util/trendingDealFormat'
-import { prepareTrendingDealGroups } from '../../util/trendingDealPrepare'
 import { useTrendingDeals } from '../../util/useTrendingDeals'
-import { TrendingDealGroupBlock } from './TrendingDealGroupBlock'
 import { TrendingDealRow } from './TrendingDealRow'
 
 export default function TrendingDealsSection() {
   const { deals, loading } = useTrendingDeals()
-  const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({})
-
-  const groups = useMemo(
-    () => prepareTrendingDealGroups(deals ?? []),
-    [deals],
+  const [brokenListingIds, setBrokenListingIds] = useState<Set<string>>(
+    () => new Set(),
   )
 
   const list = deals ?? []
+  const sorted = useMemo(() => {
+    const arr = [...list]
+    arr.sort((a, b) => {
+      const dd = (b.discountPercent ?? 0) - (a.discountPercent ?? 0)
+      if (Math.abs(dd) > 1e-9) return dd
+
+      const fs = (b.isFlashSale ? 1 : 0) - (a.isFlashSale ? 1 : 0)
+      if (fs !== 0) return fs
+
+      const ds = (b.dealScore ?? 0) - (a.dealScore ?? 0)
+      if (Math.abs(ds) > 1e-9) return ds
+
+      // Nếu cùng dealScore: ưu tiên sản phẩm không lỗi hình ảnh.
+      const ab = brokenListingIds.has(a.listingId) ? 1 : 0
+      const bb = brokenListingIds.has(b.listingId) ? 1 : 0
+      if (ab !== bb) return ab - bb
+
+      // Nếu chưa biết load lỗi: ưu tiên có imageUrl (không rỗng)
+      const ah = a.imageUrl && String(a.imageUrl).trim().length > 0 ? 1 : 0
+      const bh = b.imageUrl && String(b.imageUrl).trim().length > 0 ? 1 : 0
+      if (ah !== bh) return bh - ah
+
+      return String(a.productId).localeCompare(String(b.productId))
+    })
+    return arr
+  }, [list, brokenListingIds])
+
+  const visible = sorted.slice(0, 5)
 
   return (
     <section
@@ -46,36 +70,40 @@ export default function TrendingDealsSection() {
         </p>
       )}
 
-      {groups.length > 0 && (
+      {!loading && list.length > 0 && (
         <ul className="mt-8 space-y-6">
-          {groups.map((group) => (
-            <TrendingDealGroupBlock
-              key={group.groupKey}
-              group={group}
-              expanded={Boolean(expandedKeys[group.groupKey])}
-              onToggle={() =>
-                setExpandedKeys((prev) => ({
-                  ...prev,
-                  [group.groupKey]: !prev[group.groupKey],
-                }))
-              }
-            />
-          ))}
-        </ul>
-      )}
-
-      {!loading && groups.length === 0 && list.length > 0 && (
-        <ul className="mt-8 space-y-6">
-          {list.map((d) => (
+          {visible.map((d) => (
             <li key={d.listingId}>
-              <TrendingDealRow d={d} />
+              <TrendingDealRow
+                d={d}
+                onImageError={(listingId) => {
+                  setBrokenListingIds((prev) => {
+                    if (prev.has(listingId)) return prev
+                    const next = new Set(prev)
+                    next.add(listingId)
+                    return next
+                  })
+                }}
+              />
             </li>
           ))}
         </ul>
       )}
 
-      {!loading && groups.length === 0 && list.length === 0 && (
+      {!loading && list.length === 0 && (
         <p className="mt-8 text-sm text-stone-500">Không có kết quả phù hợp.</p>
+      )}
+
+      {!loading && sorted.length > 5 && (
+        <div className="mt-8 flex justify-center">
+          <Link
+            to="/trending-deals?page=1"
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200/90 bg-white/90 px-5 py-2.5 text-xs font-medium text-stone-600 transition hover:border-[#C9A9B0] hover:bg-[#FCF8F4] hover:text-stone-900"
+          >
+            Xem thêm
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
       )}
     </section>
   )

@@ -26,13 +26,13 @@ export function formatTrendingDealMeta(meta: TrendingDealsApiMeta): string {
 export const TRENDING_DEAL_SCORE_PARTS: Array<{
   key: keyof Pick<
     TrendingDealDto,
-    'discountScore' | 'trendScore' | 'trustScore'
+    'discountScore' | 'trustScore' | 'popularityScore'
   >
   label: string
 }> = [
   { key: 'discountScore', label: 'Giảm giá' },
-  { key: 'trendScore', label: 'Xu hướng' },
   { key: 'trustScore', label: 'Tin cậy' },
+  { key: 'popularityScore', label: 'Phổ biến' },
 ]
 
 export function formatTrendingDealVnd(n: number): string {
@@ -46,10 +46,16 @@ export function formatTrendingDealVnd(n: number): string {
 export function trendingDealBadgeClass(badge: string): string {
   const b = badge.toUpperCase()
   if (b === 'PINNED') {
-    return 'bg-[#2A211D] text-[#F6F1EA] ring-1 ring-[#2A211D]'
+    return 'bg-[#E8E0D6] text-[#5C5248] ring-1 ring-[#D4C9BC]'
   }
   if (b === 'HOT') {
     return 'bg-[#8E3B46]/12 text-[#7A2F38] ring-1 ring-[#D4A5AA]'
+  }
+  if (b === 'DEAL') {
+    return 'bg-[#1B4332]/10 text-[#1B4332] ring-1 ring-[#74C69D]'
+  }
+  if (b === 'TRENDING') {
+    return 'bg-[#E0E7FF] text-[#3730A3] ring-1 ring-[#A5B4FC]'
   }
   return 'bg-[#E8E0D6] text-[#5C5248] ring-1 ring-[#D4C9BC]'
 }

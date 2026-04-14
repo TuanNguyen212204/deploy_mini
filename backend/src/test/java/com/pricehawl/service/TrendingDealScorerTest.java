@@ -69,7 +69,7 @@ class TrendingDealScorerTest {
         listing.setPriceRecords(List.of(latest));
 
         DealScoreCalculation calc = new DealScoreCalculation(
-                0.2, 0.3, 0.9, 0.1, 1.0, 0.55);
+                0.2, 0.9, 0.1, 1.0, 0.55);
         String text = TrendingDealEngine.Explanations.forDeal(listing, calc, 17.5f, latest);
         assertTrue(text.length() >= TrendingDealEngine.MIN_EXPLANATION_LENGTH, text);
     }

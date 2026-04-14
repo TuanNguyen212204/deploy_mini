@@ -1,4 +1,3 @@
-import React from 'react';
 import { MoveUpRight, ShieldCheck } from 'lucide-react';
 import Badge from '../common/Badge';
 import PlatformPill from '../common/PlatformPill';

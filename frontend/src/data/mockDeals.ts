@@ -25,20 +25,10 @@ function listingFromPlatform(
   const fin = platform.finalPrice
   const discountScore =
     org > 0 ? Math.min(1, Math.max(0, (org - fin) / org)) : 0
-  const trendScore = product.insight.isLowest90Days
-    ? 0.88
-    : product.insight.isLowest30Days
-      ? 0.72
-      : 0.45
   const trustScore = platform.isOfficial ? 0.9 : 0.58
   const popularityScore = Math.min(1, platform.soldCount / 10000)
-  const freshnessScore = 0.94
   const dealScore =
-    0.45 * discountScore +
-    0.25 * trendScore +
-    0.15 * trustScore +
-    0.1 * popularityScore +
-    0.05 * freshnessScore
+    0.45 * discountScore + 0.25 * trustScore + 0.3 * popularityScore
   const discountPercent = org > 0 ? ((org - fin) / org) * 100 : 0
   const pinned =
     productPinned &&
@@ -49,7 +39,6 @@ function listingFromPlatform(
     listingId,
     productId: String(product.id),
     variantKey: product.model,
-    category: product.category,
     productName: product.name,
     imageUrl: product.images[0] ?? null,
     platformName: `${platform.platform} · ${platform.shopName}`,
@@ -61,10 +50,9 @@ function listingFromPlatform(
     explanation: product.insight.summary,
     pinned,
     discountScore,
-    trendScore,
     trustScore,
     popularityScore,
-    freshnessScore,
+    freshnessScore: 0.94,
   }
 }
 
@@ -77,7 +65,7 @@ const TRENDING_PRODUCT_META: Record<
   3: { badge: 'DEAL', pinned: false },
 }
 
-/** Ứng viên thô: mọi sàn — nhóm / xếp hạng ở `prepareTrendingDealGroups` */
+/** Ứng viên thô: mọi sàn — sort/pagination ở UI */
 export function buildMockTrendingDealCandidates(): TrendingDealDto[] {
   const out: TrendingDealDto[] = []
   for (const id of [1, 2, 3] as const) {

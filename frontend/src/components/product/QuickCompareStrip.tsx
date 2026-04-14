@@ -1,4 +1,3 @@
-import React from 'react';
 import Badge from '../common/Badge';
 import PlatformPill from '../common/PlatformPill';
 import type { PlatformPrice } from '../../types/product';
