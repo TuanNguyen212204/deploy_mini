@@ -1,7 +1,7 @@
 import { Heart, MoveUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Badge from '../common/Badge';
-import PlatformPill from '../common/PlatformPill';
+//import PlatformPill from '../common/PlatformPill';
 import type { ProductSearch } from '../../types/product';
 
 const FONT_STACK = {
@@ -39,7 +39,7 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
           <Link to={`/product/${product.id}`} className="flex min-w-0 gap-5 lg:flex-1">
             <div className="relative h-36 w-28 shrink-0 overflow-hidden rounded-[26px] bg-[#ECE4DA]">
               <img
-                  src={product.imageurl}
+                  src={product.imageUrl}
                   alt={product.name}
                   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
               />
@@ -90,15 +90,15 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
               Giá tốt nhất hiện tại
             </p>
 
-            {bestOffer && (
-                <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-              <span className="text-[2.15rem] font-semibold leading-none tracking-[-0.045em] text-[#241B17]">
-                {formatPrice(bestOffer.finalPrice)}
-              </span>
-                  {/* platform thay vì platformName vì đây là Platform interface */}
-                  <PlatformPill platform={bestOffer.platform} />
-                </div>
-            )}
+            {/*{bestOffer && (*/}
+            {/*    <div className="flex flex-wrap items-center gap-3 lg:justify-end">*/}
+            {/*  <span className="text-[2.15rem] font-semibold leading-none tracking-[-0.045em] text-[#241B17]">*/}
+            {/*    {formatPrice(bestOffer.finalPrice)}*/}
+            {/*  </span>*/}
+            {/*      /!* platform thay vì platformName vì đây là Platform interface *!/*/}
+            {/*      <PlatformPill platform={bestOffer.platform} />*/}
+            {/*    </div>*/}
+            {/*)}*/}
 
             {spread > 0 && (
                 <p className="text-sm text-[#7A5D49] lg:text-right">

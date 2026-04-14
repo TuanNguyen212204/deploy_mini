@@ -120,7 +120,7 @@ export const mockProducts: Product[] = [
         relatedProductIds: [2, 3],
     },
     {
-        id: 2,
+        id: '0b3eab2c-dc2c-4443-81fa-cb48204e13c5',
         slug: 'the-ordinary-niacinamide-10-zinc-1',
         name: 'Serum The Ordinary Niacinamide 10% + Zinc 1%',
         brand: 'The Ordinary',
@@ -145,7 +145,7 @@ export const mockProducts: Product[] = [
         reviews: 4180,
         platforms: [
             {
-                platform: 'Shopee',
+                platform: 'Cocolux',
                 shopName: 'DECIEM Official',
                 isOfficial: true,
                 currentPrice: 289000,
@@ -160,7 +160,7 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Lazada',
+                platform: 'Gardian',
                 shopName: 'Beauty Official Mall',
                 isOfficial: true,
                 currentPrice: 295000,
@@ -175,7 +175,7 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Tiki',
+                platform: 'Hasaki',
                 shopName: 'Skincare Hub',
                 isOfficial: false,
                 currentPrice: 279000,
@@ -189,21 +189,7 @@ export const mockProducts: Product[] = [
                 lastCrawledAt: '2026-04-10T09:06:00Z',
                 url: '#',
             },
-            {
-                platform: 'Sendo',
-                shopName: 'Glow House',
-                isOfficial: false,
-                currentPrice: 265000,
-                originalPrice: 389000,
-                voucherDiscount: 0,
-                shippingFee: 30000,
-                finalPrice: 295000,
-                rating: 4.4,
-                soldCount: 640,
-                inStock: true,
-                lastCrawledAt: '2026-04-10T08:52:00Z',
-                url: '#',
-            },
+
         ],
         priceHistory7d: [
             { date: '2026-04-04', price: 319000 },
@@ -252,16 +238,16 @@ export const mockProducts: Product[] = [
         relatedProductIds: [1, 3],
     },
     {
-        id: 3,
-        slug: 'laneige-water-bank-moisture-cream',
-        name: 'Kem dưỡng Laneige Water Bank Blue Hyaluronic Cream',
-        brand: 'Laneige',
+        id: '10000000-0000-0000-0000-000000000009',
+        slug: 'Vichy Capital Soleil UV-Age Daily SPF50+ 40ml',
+        name: 'Kem chống nắng Vichy Capital Soleil UV-Age Daily SPF50+ 40ml ',
+        brand: 'Vichy',
         model: 'Blue Hyaluronic Cream 50ml',
         category: 'Mỹ phẩm',
-        subcategory: 'Kem dưỡng',
+        subcategory: 'Kem chống nắng',
         images: [
-            'https://images.unsplash.com/photo-1612817288484-6f916006741a?auto=format&fit=crop&w=1200&q=80',
-            'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?auto=format&fit=crop&w=1200&q=80',
+            'https://th.bing.com/th/id/OIP.WBn1XZWfsp_ZZPxfUgm9zQHaHa?w=216&h=216&c=7&r=0&o=5&dpr=1.3&pid=1.7',
+            'https://th.bing.com/th/id/R.93f185170d5fd35bd420859a2abce777?rik=v2Ya%2f5rfViZRTg&riu=http%3a%2f%2fwww.facethefuture.co.uk%2fcdn%2fshop%2fproducts%2fCapital-Soleil-UV-Age-Daily-SPF50-Packshot-940x940.jpg%3fv%3d1664532821&ehk=AwdpmPA0Vu0Afha88vKg3gVucl9ABRQPhv1UCo9qBX4%3d&risl=&pid=ImgRaw&r=0',
         ],
         description:
             'Kem dưỡng cấp ẩm tốt, kết cấu mịn nhẹ, giúp da căng bóng và mềm mượt hơn sau khi sử dụng.',

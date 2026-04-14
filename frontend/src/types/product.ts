@@ -19,7 +19,7 @@ export interface ProductSearch {
   categoryName: string;
   brandName: string;
   score: number;
-  imageurl: string;
+  imageUrl: string;
   platforms: Platform[];
 }
 
