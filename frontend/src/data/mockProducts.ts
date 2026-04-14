@@ -2,7 +2,7 @@ import type { Product } from '../types/product';
 
 export const mockProducts: Product[] = [
     {
-        id: 1,
+        id: '10000000-0000-0000-0000-000000000002',
         slug: 'anessa-perfect-uv-sunscreen-milk',
         name: 'Kem chống nắng Anessa Perfect UV Sunscreen Milk',
         brand: 'Anessa',
@@ -27,7 +27,7 @@ export const mockProducts: Product[] = [
         reviews: 5420,
         platforms: [
             {
-                platform: 'Shopee',
+                platform: 'Cocolux',
                 shopName: 'Anessa Official Store',
                 isOfficial: true,
                 currentPrice: 489000,
@@ -42,7 +42,7 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Lazada',
+                platform: 'Gardian',
                 shopName: 'Shiseido Mall',
                 isOfficial: true,
                 currentPrice: 499000,
@@ -57,8 +57,8 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Tiki',
-                shopName: 'Tiki Trading',
+                platform: 'Hasaki',
+                shopName: 'Hasaki Trading',
                 isOfficial: true,
                 currentPrice: 515000,
                 originalPrice: 620000,
@@ -71,21 +71,7 @@ export const mockProducts: Product[] = [
                 lastCrawledAt: '2026-04-10T09:11:00Z',
                 url: '#',
             },
-            {
-                platform: 'Sendo',
-                shopName: 'Beauty Corner',
-                isOfficial: false,
-                currentPrice: 469000,
-                originalPrice: 750000,
-                voucherDiscount: 0,
-                shippingFee: 35000,
-                finalPrice: 504000,
-                rating: 4.3,
-                soldCount: 300,
-                inStock: true,
-                lastCrawledAt: '2026-04-10T08:58:00Z',
-                url: '#',
-            },
+
         ],
         priceHistory7d: [
             { date: '2026-04-04', price: 529000 },

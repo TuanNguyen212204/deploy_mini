@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Bell, MoveUpRight, Trash2, TrendingDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Badge from '../components/common/Badge';
