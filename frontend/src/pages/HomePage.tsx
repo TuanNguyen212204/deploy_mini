@@ -8,6 +8,7 @@ import { mockDeals, mockDealSections } from '../data/mockDeals';
 import { mockProducts } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
 
+
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
   sans:
@@ -43,6 +44,8 @@ const categories = [
 export default function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+
+
 
   const curatedProducts = useMemo(() => {
     return mockProducts.filter(
