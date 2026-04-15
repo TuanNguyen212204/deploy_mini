@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCheck, X } from 'lucide-react';
 import Badge from '../common/Badge';
-import type { Platform } from '../../types/product';
+import type { PlatformName } from '../../types/product';
 import type { AlertChannel } from '../../types/alert';
 
 type AlertModalProps = {
@@ -9,11 +9,14 @@ type AlertModalProps = {
   onClose: () => void;
   productName?: string;
   defaultPrice?: number;
-  defaultPlatform?: Platform | 'all';
+  defaultPlatform?: PlatformName | 'all';
 };
 
-const platformOptions: Array<Platform | 'all'> = [
+const platformOptions: Array<PlatformName | 'all'> = [
   'all',
+  'Coculux',
+  'Gardian',
+  'Hasaki',
   'Shopee',
   'Lazada',
   'Tiki',
@@ -39,7 +42,7 @@ export default function AlertModal({
   const [targetPrice, setTargetPrice] = useState(
     defaultPrice ? String(defaultPrice) : '',
   );
-  const [platform, setPlatform] = useState<Platform | 'all'>(defaultPlatform);
+  const [platform, setPlatform] = useState<PlatformName | 'all'>(defaultPlatform);
   const [channel, setChannel] = useState<AlertChannel>('email');
   const [frequency, setFrequency] = useState('Ngay khi chạm ngưỡng');
   const [note, setNote] = useState('');
@@ -162,7 +165,9 @@ export default function AlertModal({
                 </label>
                 <select
                   value={platform}
-                  onChange={(e) => setPlatform(e.target.value as Platform | 'all')}
+                  onChange={(e) =>
+                    setPlatform(e.target.value as PlatformName | 'all')
+                  }
                   className="w-full rounded-[22px] border border-white/50 bg-white/60 px-4 py-4 text-sm text-stone-900 outline-none backdrop-blur-sm transition focus:border-[#D7B6BA]"
                 >
                   {platformOptions.map((item) => (

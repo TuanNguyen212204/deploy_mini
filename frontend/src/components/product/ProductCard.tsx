@@ -1,7 +1,7 @@
 import { Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Badge from '../common/Badge';
-import type { Product } from '../../types/product';
+//import Badge from '../common/Badge';
+import type { ProductSearch } from '../../types/product';
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -10,7 +10,7 @@ const FONT_STACK = {
 } as const;
 
 type ProductCardProps = {
-  product: Product;
+  product: ProductSearch;
 };
 
 const formatPrice = (price: number): string =>
@@ -30,7 +30,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       <article className="glass shadow-soft overflow-hidden rounded-[32px] p-5 transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_25px_60px_rgba(15,23,42,0.08)]">
         <div className="relative overflow-hidden rounded-[26px] bg-[#F6F1EB]">
           <img
-            src={product.images[0]}
+            src={product.images[0] ?? product.imageUrl}
             alt={product.name}
             className="aspect-[4/5] w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
           />
@@ -50,11 +50,11 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="mt-6">
           <div className="flex items-center justify-between gap-3">
             <span className="caption-soft text-[10px] font-medium uppercase text-[#8E6A72]">
-              {product.brand}
+              {product.brandName}
             </span>
 
             <span className="text-xs text-stone-400">
-              {product.rating} · {product.reviews.toLocaleString('vi-VN')} reviews
+              {product.categoryName}
             </span>
           </div>
 
@@ -65,15 +65,15 @@ export default function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            {!product.insight.isFakeDiscountRisk && (
-              <Badge variant="brand">Deal tuyển chọn</Badge>
-            )}
+          {/*<div className="mt-4 flex flex-wrap gap-2">*/}
+          {/*  {!product.insight.isFakeDiscountRisk && (*/}
+          {/*    <Badge variant="brand">Deal tuyển chọn</Badge>*/}
+          {/*  )}*/}
 
-            {product.insight.isLowest30Days && (
-              <Badge variant="soft">Giá đẹp 30 ngày</Badge>
-            )}
-          </div>
+          {/*  {product.insight.isLowest30Days && (*/}
+          {/*    <Badge variant="soft">Giá đẹp 30 ngày</Badge>*/}
+          {/*  )}*/}
+          {/*</div>*/}
 
           <div className="mt-5 flex items-baseline gap-3">
             <span className="text-[1.4rem] font-semibold tracking-tight text-stone-900">
@@ -81,13 +81,13 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
 
             <span className="text-sm text-stone-300 line-through">
-              {formatPrice(bestOffer.originalPrice)}
+              {formatPrice(bestOffer.finalPrice)}
             </span>
           </div>
 
-          <p className="mt-4 text-sm leading-7 text-stone-500">
-            {product.insight.summary}
-          </p>
+          {/*<p className="mt-4 text-sm leading-7 text-stone-500">*/}
+          {/*  {product.insight.summary}*/}
+          {/*</p>*/}
         </div>
       </article>
     </Link>

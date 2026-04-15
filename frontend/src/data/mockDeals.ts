@@ -2,13 +2,19 @@
  * Mock deal cards / sections + mock listing trending (fallback khi API lỗi / VITE_USE_TRENDING_API=false).
  */
 import type { Deal, DealSection } from '../types/deal'
-import type { PlatformPrice, Product } from '../types/product'
+import type { Product } from '../types/product'
 import type { TrendingDealDto } from '../types/trendingDeal'
 import { mockProducts } from './mockProducts'
 
 /* ——— Trending listing mock ——— */
 
-function trendingProductById(id: number): Product {
+const TRENDING_PRODUCT_IDS = [
+  '10000000-0000-0000-0000-000000000002',
+  '0b3eab2c-dc2c-4443-81fa-cb48204e13c5',
+  '10000000-0000-0000-0000-000000000009',
+] as const
+
+function trendingProductById(id: string): Product {
   const p = mockProducts.find((x) => x.id === id)
   if (!p) throw new Error(`mockProducts thiếu id ${id}`)
   return p
@@ -16,7 +22,7 @@ function trendingProductById(id: number): Product {
 
 function listingFromPlatform(
   product: Product,
-  platform: PlatformPrice,
+  platform: Product['platforms'][number],
   listingId: string,
   productBadge: string,
   productPinned: boolean,
@@ -33,7 +39,7 @@ function listingFromPlatform(
   const pinned =
     productPinned &&
     platform.isOfficial &&
-    platform.platform === 'Shopee'
+    (platform.platform === 'Cocolux' || platform.platform === 'Coculux')
 
   return {
     listingId,
@@ -57,18 +63,18 @@ function listingFromPlatform(
 }
 
 const TRENDING_PRODUCT_META: Record<
-  number,
+  (typeof TRENDING_PRODUCT_IDS)[number],
   { badge: string; pinned: boolean }
 > = {
-  1: { badge: 'HOT', pinned: false },
-  2: { badge: 'PINNED', pinned: true },
-  3: { badge: 'DEAL', pinned: false },
+  '10000000-0000-0000-0000-000000000002': { badge: 'HOT', pinned: false },
+  '0b3eab2c-dc2c-4443-81fa-cb48204e13c5': { badge: 'PINNED', pinned: true },
+  '10000000-0000-0000-0000-000000000009': { badge: 'DEAL', pinned: false },
 }
 
 /** Ứng viên thô: mọi sàn — sort/pagination ở UI */
 export function buildMockTrendingDealCandidates(): TrendingDealDto[] {
   const out: TrendingDealDto[] = []
-  for (const id of [1, 2, 3] as const) {
+  for (const id of TRENDING_PRODUCT_IDS) {
     const p = trendingProductById(id)
     const m = TRENDING_PRODUCT_META[id]
     p.platforms.forEach((pf, i) => {
@@ -93,7 +99,7 @@ export const mockTrendingDealCandidates = buildMockTrendingDealCandidates()
 export const mockDeals: Deal[] = [
   {
     id: 'deal-1',
-    productId: 1,
+    productId: '10000000-0000-0000-0000-000000000002',
     type: 'trending',
     title: 'Top deal tai nghe hôm nay',
     subtitle: 'Giá thấp nhất 90 ngày',
@@ -105,7 +111,7 @@ export const mockDeals: Deal[] = [
   },
   {
     id: 'deal-2',
-    productId: 2,
+    productId: '0b3eab2c-dc2c-4443-81fa-cb48204e13c5',
     type: 'real-discount',
     title: 'Deal thật mỹ phẩm',
     subtitle: 'Thấp hơn trung bình 30 ngày 11%',
@@ -117,7 +123,7 @@ export const mockDeals: Deal[] = [
   },
   {
     id: 'deal-3',
-    productId: 3,
+    productId: '10000000-0000-0000-0000-000000000009',
     type: 'suspicious-discount',
     title: 'Giảm sâu nhưng cần kiểm tra',
     subtitle: 'Có dấu hiệu tăng giá trước sale',
@@ -129,7 +135,7 @@ export const mockDeals: Deal[] = [
   },
   {
     id: 'deal-4',
-    productId: 2,
+    productId: '0b3eab2c-dc2c-4443-81fa-cb48204e13c5',
     type: 'near-historic-low',
     title: 'Sắp chạm đáy lịch sử',
     subtitle: 'Giá rất sát mức thấp nhất 90 ngày',

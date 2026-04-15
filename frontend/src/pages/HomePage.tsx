@@ -5,8 +5,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import Badge from '../components/common/Badge';
 import ProductCard from '../components/product/ProductCard';
 import { mockDeals, mockDealSections } from '../data/mockDeals';
-import { mockProducts } from '../data/mockProducts';
+import { mockProducts, toProductSearch } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
+
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -44,6 +45,8 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
+
+
   const curatedProducts = useMemo(() => {
     return mockProducts.filter(
       (product) =>
@@ -60,7 +63,7 @@ export default function HomePage() {
 
     const productIds = trendingDealIds
       .map((dealId) => mockDeals.find((deal) => deal.id === dealId)?.productId)
-      .filter((id): id is number => typeof id === 'number');
+      .filter((id): id is string => typeof id === 'string');
 
     return mockProducts.filter((product) => productIds.includes(product.id));
   }, []);
@@ -231,7 +234,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {homeHighlights.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={toProductSearch(product)} />
             ))}
           </div>
         </section>

@@ -51,6 +51,7 @@ public class ProductService {
                     .filter(p -> p.getId().equals(id))
                     .findFirst()
                     .orElse(null);
+            String imageUrl = (product != null) ? product.getImageUrl() : null;
 
             ProductSearchDTO dto = new ProductSearchDTO(
                     (UUID) r[0],
@@ -59,7 +60,7 @@ public class ProductService {
                     (String) r[3],
                     (String) r[4],
                     r[5] != null ? ((Number) r[5]).doubleValue() : 0.0,
-                    null,
+                    imageUrl,
                     null
             );
 

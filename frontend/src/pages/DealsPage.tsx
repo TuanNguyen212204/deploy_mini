@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import ProductCompareCard from '../components/product/ProductCompareCard';
 import TrendingDealsSection from '../components/deals/TrendingDealsSection';
 import { mockDeals, mockDealSections } from '../data/mockDeals';
-import { mockProducts } from '../data/mockProducts';
+import { mockProducts, toProductSearch } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -212,7 +212,10 @@ export default function DealsPage() {
 
                 <div className="space-y-6">
                   {section.products.map((product) => (
-                    <ProductCompareCard key={product.id} product={product} />
+                    <ProductCompareCard
+                      key={product.id}
+                      product={toProductSearch(product)}
+                    />
                   ))}
                 </div>
               </section>
