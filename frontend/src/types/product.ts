@@ -27,7 +27,7 @@ export interface ProductSearch {
 export interface PriceComparison {
   productId: string;
   productName: string;
-  productImageUrl: string;
+  imageUrls: string[];
   comparisons: PriceComparisonItem[];
 }
 
@@ -65,3 +65,11 @@ export interface PricePoint {
   crawledAt: string;
   price: number;
 }
+export type Product = {
+  id: string;
+  name: string;
+  images: string[];
+  brand: string;
+  category: string;
+  platforms: any[];
+};
