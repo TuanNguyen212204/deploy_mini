@@ -9,7 +9,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,12 +30,22 @@ public final class TrendingDealRepositories {
      */
     public interface TrendingDealRepository extends JpaRepository<ProductListing, UUID> {
 
+        /**
+         * Chỉ lấy id + phân trang: tránh load toàn bộ listing (trước đây query không WHERE
+         * có thể kéo hàng chục nghìn dòng và làm API treo).
+         */
+        @Query("""
+                SELECT p.id FROM ProductListing p
+                """)
+        Page<UUID> findTrendingCandidateIds(Pageable pageable);
+
         @Query("""
                 SELECT DISTINCT p FROM ProductListing p
-                LEFT JOIN FETCH p.product
-                LEFT JOIN FETCH p.platform
+                JOIN FETCH p.product
+                JOIN FETCH p.platform
+                WHERE p.id IN :ids
                 """)
-        List<ProductListing> findTrendingCandidates();
+        List<ProductListing> findAllWithProductAndPlatformByIdIn(@Param("ids") Collection<UUID> ids);
     }
 
     public interface ProductRepository extends JpaRepository<Product, UUID> {
@@ -50,6 +62,12 @@ public final class TrendingDealRepositories {
     public interface PriceRecordRepository extends JpaRepository<PriceRecord, Long> {
 
         List<PriceRecord> findByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
+
+        /**
+         * Đủ cho TrendingDealEngine (fake promo cần vài chục bản ghi gần nhất); tránh đọc
+         * full lịch sử nếu crawler tích lũy nhiều năm.
+         */
+        List<PriceRecord> findTop400ByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
     }
 
     public interface PriceAlertRepository extends JpaRepository<PriceAlert, UUID> {
