@@ -2,46 +2,60 @@ import { useMemo, useState } from 'react';
 
 import ProductCompareCard from '../components/product/ProductCompareCard';
 import TrendingDealsSection from '../components/deals/TrendingDealsSection';
-import { mockDeals, mockDealSections } from '../data/mockDeals';
-import { mockProducts, toProductSearch } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
+import { useTrendingDeals } from '../util/useTrendingDeals';
+import {
+  isDealOlderThanDays,
+  sortByDealScoreDesc,
+  sortByDiscountPercentDesc,
+  trendingDealToProductSearch,
+} from '../util/trendingDealSelectors';
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
   sans:
     'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 } as const;
-type DealTab = 'all' | 'today' | 'worthy' | 'watch' | 'price-beauty';
+type DealTab = 'all' | 'today' | 'worthy' | 'watch';
 
 const tabOptions: Array<{ id: DealTab; label: string }> = [
   { id: 'all', label: 'Tất cả' },
   { id: 'today', label: 'Hôm nay' },
   { id: 'worthy', label: 'Đáng mua' },
   { id: 'watch', label: 'Theo dõi thêm' },
-  { id: 'price-beauty', label: 'Giá đẹp' },
 ];
 
 export default function DealsPage() {
   const [activeTab, setActiveTab] = useState<DealTab>('all');
+  const { deals, loading } = useTrendingDeals();
 
   const mappedSections = useMemo(() => {
-    return mockDealSections
-      .map((section) => {
-        const deals = section.dealIds
-          .map((dealId) => mockDeals.find((deal) => deal.id === dealId))
-          .filter(Boolean);
+    const list = deals ?? [];
+    if (list.length === 0) return [];
 
-        const products = deals
-          .map((deal) => mockProducts.find((product) => product.id === deal?.productId))
-          .filter((product): product is NonNullable<typeof product> => Boolean(product));
+    const byDealScore = [...list].sort(sortByDealScoreDesc);
+    const byDiscount = [...list].sort(sortByDiscountPercentDesc);
+    const stale = byDealScore.find((d) => isDealOlderThanDays(d, 7)) ?? null;
 
-        return {
-          ...section,
-          deals,
-          products,
-        };
-      })
-      .filter((section) => section.products.length > 0);
-  }, []);
+    const sections = [
+      {
+        id: 'trending-dealscore-top',
+        type: 'trending',
+        products: byDealScore.slice(0, 1).map(trendingDealToProductSearch),
+      },
+      {
+        id: 'deal-discount-top',
+        type: 'real-discount',
+        products: byDiscount.slice(0, 1).map(trendingDealToProductSearch),
+      },
+      {
+        id: 'deal-stale-observe',
+        type: 'suspicious-discount',
+        products: (stale ? [stale] : byDealScore.slice(0, 1)).map(trendingDealToProductSearch),
+      },
+    ];
+
+    return sections.filter((s) => s.products.length > 0);
+  }, [deals]);
 
   const filteredSections = useMemo(() => {
     if (activeTab === 'all' || activeTab === 'today') {
@@ -56,34 +70,22 @@ export default function DealsPage() {
       return mappedSections.filter((section) => section.type === 'suspicious-discount');
     }
 
-    if (activeTab === 'price-beauty') {
-      return mappedSections.filter((section) => section.type === 'near-historic-low');
-    }
-
     return mappedSections;
   }, [activeTab, mappedSections]);
 
   const summaryText = useMemo(() => {
-    const totalDeals = mockDeals.length;
-    const realDeals = mockDeals.filter((deal) => deal.type === 'real-discount').length;
-    const suspiciousDeals = mockDeals.filter(
-      (deal) => deal.type === 'suspicious-discount',
-    ).length;
+    const totalDeals = (deals ?? []).length;
 
     if (activeTab === 'worthy') {
-      return `${realDeals} lựa chọn đang ở vùng giá đẹp và đáng cân nhắc hơn cho thời điểm hiện tại.`;
+      return 'Đang chọn món có mức giảm tốt nhất so với giá gốc hiện tại.';
     }
 
     if (activeTab === 'watch') {
-      return `${suspiciousDeals} trường hợp cần theo dõi thêm trước khi ra quyết định mua.`;
-    }
-
-    if (activeTab === 'price-beauty') {
-      return 'Những món đang ở gần vùng giá đẹp nhất trong lịch sử gần đây.';
+      return 'Đang chọn món có dealScore cao nhưng dữ liệu cập nhật đã lâu (quá 7 ngày).';
     }
 
     return `${totalDeals} lựa chọn được chọn lọc từ tín hiệu giá hiện tại, lịch sử gần đây và độ ổn định của mức giảm.`;
-  }, [activeTab]);
+  }, [activeTab, deals]);
 
   const sectionMeta = (type: string) => {
     if (type === 'trending') {
@@ -110,15 +112,6 @@ export default function DealsPage() {
         title: 'Cần quan sát kỹ hơn',
         subtitle:
           'Một số mức giảm trông hấp dẫn, nhưng vẫn nên xem thêm lịch sử giá trước khi mua.',
-      };
-    }
-
-    if (type === 'near-historic-low') {
-      return {
-        eyebrow: 'Giá đẹp',
-        title: 'Đang gần vùng mua tốt',
-        subtitle:
-          'Các lựa chọn đang tiến sát mức giá thấp đẹp trong chu kỳ gần đây, phù hợp để mua hoặc lưu alert.',
       };
     }
 
@@ -214,7 +207,7 @@ export default function DealsPage() {
                   {section.products.map((product) => (
                     <ProductCompareCard
                       key={product.id}
-                      product={toProductSearch(product)}
+                      product={product}
                     />
                   ))}
                 </div>
@@ -236,8 +229,9 @@ export default function DealsPage() {
               </h2>
 
               <p className="mt-4 text-sm leading-7 text-stone-500">
-                Thử chuyển sang nhóm khác để xem thêm những lựa chọn đang có tín
-                hiệu giá đẹp hơn.
+                {loading
+                  ? 'Đang tải dữ liệu deal từ backend…'
+                  : 'Thử chuyển sang nhóm khác để xem thêm những lựa chọn đang có tín hiệu giá đẹp hơn.'}
               </p>
             </div>
           )}

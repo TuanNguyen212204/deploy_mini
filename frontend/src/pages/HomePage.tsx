@@ -4,9 +4,13 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import Badge from '../components/common/Badge';
 import ProductCard from '../components/product/ProductCard';
-import { mockDeals, mockDealSections } from '../data/mockDeals';
-import { mockProducts, toProductSearch } from '../data/mockProducts';
+import { mockProducts } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
+import { useTrendingDeals } from '../util/useTrendingDeals';
+import {
+  sortByDealScoreDesc,
+  trendingDealToProductSearch,
+} from '../util/trendingDealSelectors';
 
 
 const FONT_STACK = {
@@ -45,6 +49,8 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
+  const { deals } = useTrendingDeals();
+
 
 
   const curatedProducts = useMemo(() => {
@@ -57,29 +63,17 @@ export default function HomePage() {
     );
   }, []);
 
-  const todaySelection = useMemo(() => {
-    const trendingDealIds =
-      mockDealSections.find((section) => section.type === 'trending')?.dealIds ?? [];
-
-    const productIds = trendingDealIds
-      .map((dealId) => mockDeals.find((deal) => deal.id === dealId)?.productId)
-      .filter((id): id is string => typeof id === 'string');
-
-    return mockProducts.filter((product) => productIds.includes(product.id));
-  }, []);
-
   const featuredProduct = useMemo(() => {
     return curatedProducts[0] ?? mockProducts[0];
   }, [curatedProducts]);
 
   const homeHighlights = useMemo(() => {
-    const merged = [...todaySelection, ...curatedProducts];
-    const unique = merged.filter(
-      (product, index, arr) => arr.findIndex((item) => item.id === product.id) === index,
-    );
+    const list = deals ?? [];
+    if (list.length === 0) return [];
 
-    return unique.slice(0, 6);
-  }, [todaySelection, curatedProducts]);
+    const sorted = [...list].sort(sortByDealScoreDesc);
+    return sorted.slice(0, 3).map(trendingDealToProductSearch);
+  }, [deals]);
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -234,7 +228,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {homeHighlights.map((product) => (
-              <ProductCard key={product.id} product={toProductSearch(product)} />
+              <ProductCard key={product.id} product={product} />
             ))}
           </div>
         </section>
