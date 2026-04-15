@@ -18,11 +18,10 @@ import java.util.Objects;
  */
 public final class TrendingDealEngine {
 
-    // DealScore = 0.45 * DiscountScore + 0.25 * TrustScore + 0.25 * PopularityScore + 0.05 * FreshnessScore
-    private static final double W_DISCOUNT = 0.45;
+    // DealScore = 0.55 * DiscountScore + 0.25 * TrustScore + 0.2 * FreshnessScore
+    private static final double W_DISCOUNT = 0.55;
     private static final double W_TRUST = 0.25;
-    private static final double W_POP = 0.25;
-    private static final double W_FRESH = 0.05;
+    private static final double W_FRESH = 0.20;
 
     private TrendingDealEngine() {
     }
@@ -33,7 +32,6 @@ public final class TrendingDealEngine {
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final float MIN_DISCOUNT_PCT_EXCLUSIVE = 10f;
-    public static final int MIN_POPULARITY_SCORE_EXCLUSIVE = 60;
     public static final double MIN_TRUST_SCORE_INCLUSIVE = 0.50;
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
@@ -85,13 +83,17 @@ public final class TrendingDealEngine {
 
         // Eligibility theo yêu cầu:
         // - PriceRecord: discountPct > 10%, inStock == true, và xử lý isFlashSale null-safe
-        // - Product: popularityScore > 60
         // - ProductListing: trustScore >= 0.50
         if (!hasInStockLatest(latest)) {
             return false;
         }
-        // "kiểm tra cả isFlashSale": chỉ đảm bảo đọc field an toàn (null -> false)
-        // đọc isFlashSale null-safe để tránh NPE (không thêm điều kiện loại)
+        // FreshnessScore là bắt buộc → cần crawledAt hợp lệ để tính freshness tier.
+        if (latest.getCrawledAt() == null) {
+            return false;
+        }
+
+        // "kiểm tra cả isFlashSale": đọc null-safe (null -> false) để chắc chắn field hợp lệ.
+        // Không dùng làm điều kiện loại listing; chỉ đảm bảo logic/response không NPE.
         Boolean.TRUE.equals(latest.getIsFlashSale());
 
         float discountPct = (float) platformDiscountPct(latest);
@@ -99,14 +101,12 @@ public final class TrendingDealEngine {
             return false;
         }
 
-        Integer popRaw = listing.getProduct() != null ? listing.getProduct().getPopularityScore() : null;
-        int popularity = popRaw == null ? 0 : popRaw;
-        if (!(popularity > MIN_POPULARITY_SCORE_EXCLUSIVE)) {
+        // trustScore là bắt buộc (không có → loại)
+        Double trustRaw = listing.getTrustScore();
+        if (trustRaw == null) {
             return false;
         }
-
-        Double trustRaw = listing.getTrustScore();
-        double trust = trustRaw == null ? 0.0 : trustRaw;
+        double trust = trustRaw;
         if (trust < MIN_TRUST_SCORE_INCLUSIVE) {
             return false;
         }
@@ -155,15 +155,25 @@ public final class TrendingDealEngine {
         if (r == null) {
             return 0.0;
         }
-        if (r.getDiscountPct() != null && r.getDiscountPct() >= 0) {
-            return r.getDiscountPct();
-        }
         Integer o = r.getOriginalPrice();
         Integer price = r.getPrice();
-        if (o == null || o <= 0 || price == null) {
-            return 0.0;
+
+        // Option A: ưu tiên tự tính khi có đủ originalPrice và currentPrice hợp lệ.
+        if (o != null && o > 0 && price != null && price > 0) {
+            double raw = (1.0 - price / (double) o) * 100.0;
+            double clamped = Math.max(0.0, Math.min(100.0, raw));
+            // Làm tròn để UI hiển thị đẹp (vd: 10% thay vì 10.2345%).
+            return Math.round(clamped);
         }
-        return (1.0 - price / (double) o) * 100.0;
+
+        // Chỉ dùng discountPct từ DB khi originalPrice thiếu hoặc không hợp lệ.
+        Float db = r.getDiscountPct();
+        if (db != null && db >= 0) {
+            double clamped = Math.max(0.0, Math.min(100.0, db));
+            return Math.round(clamped);
+        }
+
+        return 0.0;
     }
 
     private static boolean suddenDeepDiscountAfterQuietHistory(
@@ -341,16 +351,12 @@ public final class TrendingDealEngine {
         double discountScore = Math.min(1.0, Math.max(0.0, platformDiscountPct(latest) / 100.0));
 
         double trustScore = normalizeTrust(listing != null ? listing.getTrustScore() : null);
-        double popularityScore = calculatePopularity(listing != null && listing.getProduct() != null
-                ? listing.getProduct().getPopularityScore()
-                : null);
         double freshnessScore = calculateFreshnessTiered(latest.getCrawledAt());
         double total = W_DISCOUNT * discountScore
                 + W_TRUST * trustScore
-                + W_POP * popularityScore
                 + W_FRESH * freshnessScore;
 
-        return new DealScoreCalculation(discountScore, trustScore, popularityScore, freshnessScore, total);
+        return new DealScoreCalculation(discountScore, trustScore, freshnessScore, total);
     }
 
     private static double normalizeTrust(Double trust) {
@@ -361,14 +367,6 @@ public final class TrendingDealEngine {
             return 0.0;
         }
         return Math.max(0.0, Math.min(1.0, trust));
-    }
-
-    private static double calculatePopularity(Integer popularity) {
-        if (popularity == null || popularity <= 0) {
-            return 0.0;
-        }
-        // Thang điểm DB 0–100 → normalize về 0–1.
-        return Math.min(1.0, popularity / 100.0);
     }
 
     private static double calculateFreshnessTiered(LocalDateTime crawlTime) {

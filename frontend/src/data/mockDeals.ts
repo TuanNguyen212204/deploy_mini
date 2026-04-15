@@ -32,9 +32,9 @@ function listingFromPlatform(
   const discountScore =
     org > 0 ? Math.min(1, Math.max(0, (org - fin) / org)) : 0
   const trustScore = platform.isOfficial ? 0.9 : 0.58
-  const popularityScore = Math.min(1, platform.soldCount / 10000)
+  const freshnessScore = 0.94
   const dealScore =
-    0.45 * discountScore + 0.25 * trustScore + 0.3 * popularityScore
+    0.55 * discountScore + 0.25 * trustScore + 0.2 * freshnessScore
   const discountPercent = org > 0 ? ((org - fin) / org) * 100 : 0
   const pinned =
     productPinned &&
@@ -57,8 +57,7 @@ function listingFromPlatform(
     pinned,
     discountScore,
     trustScore,
-    popularityScore,
-    freshnessScore: 0.94,
+    freshnessScore,
   }
 }
 

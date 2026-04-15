@@ -75,7 +75,6 @@ function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
     pinned,
     discountScore: optionalScore(raw.discountScore),
     trustScore: optionalScore(raw.trustScore),
-    popularityScore: optionalScore(raw.popularityScore),
     freshnessScore: optionalScore(raw.freshnessScore),
   }
 }
@@ -87,9 +86,14 @@ export type TrendingDealsFetchResult = {
 
 export async function fetchTrendingDeals(
   expand = false,
+  opts?: { refresh?: boolean },
 ): Promise<TrendingDealsFetchResult> {
   const base = getApiBaseUrl()
-  const url = `${base}/api/trending-deals${expand ? '?expand=true' : ''}`
+  const params = new URLSearchParams()
+  if (expand) params.set('expand', 'true')
+  if (opts?.refresh) params.set('refresh', 'true')
+  const qs = params.toString()
+  const url = `${base}/api/trending-deals${qs ? `?${qs}` : ''}`
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
   })

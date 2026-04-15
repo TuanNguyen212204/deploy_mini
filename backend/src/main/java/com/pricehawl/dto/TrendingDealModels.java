@@ -42,7 +42,6 @@ public final class TrendingDealModels {
         private String priceConflictMessage;
         private Double discountScore;
         private Double trustScore;
-        private Double popularityScore;
         private Double freshnessScore;
     }
 
@@ -56,12 +55,11 @@ public final class TrendingDealModels {
     public record DealScoreCalculation(
             double discountScore,
             double trustScore,
-            double popularityScore,
             double freshnessScore,
             double totalDealScore
     ) {
         public static DealScoreCalculation zero() {
-            return new DealScoreCalculation(0, 0, 0, 0, 0);
+            return new DealScoreCalculation(0, 0, 0, 0);
         }
     }
 

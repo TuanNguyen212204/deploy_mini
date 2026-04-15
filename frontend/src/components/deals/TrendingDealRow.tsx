@@ -2,11 +2,21 @@ import { Link } from 'react-router-dom'
 import type { TrendingDealDto } from '../../types/trendingDeal'
 import {
   TRENDING_DEAL_FONT_STACK,
+  TRENDING_DEAL_PLACEHOLDER_IMG,
   formatTrendingDealVnd,
   trendingDealBadgeClass,
 } from '../../util/trendingDealFormat'
 import { TrendingDealScoreBreakdown } from './TrendingDealScoreBreakdown'
 import { useState } from 'react'
+
+function resolveDealImageSrc(imageUrl: string | null): string {
+  const raw = (imageUrl ?? '').trim()
+  if (!raw) return TRENDING_DEAL_PLACEHOLDER_IMG
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (raw.startsWith('//')) return `https:${raw}`
+  // Fallback an toàn cho URL tương đối / sai format
+  return TRENDING_DEAL_PLACEHOLDER_IMG
+}
 
 export function TrendingDealRow({
   d,
@@ -18,7 +28,6 @@ export function TrendingDealRow({
   onImageError?: (listingId: string) => void
 }) {
   const [imgBroken, setImgBroken] = useState(false)
-  const hasImg = Boolean(d.imageUrl && String(d.imageUrl).trim().length > 0)
   return (
     <div className={nested ? 'max-w-full' : ''}>
       <Link
@@ -35,21 +44,18 @@ export function TrendingDealRow({
               nested ? 'h-20 w-20' : 'h-24 w-24'
             }`}
           >
-            {hasImg && !imgBroken ? (
-              <img
-                src={String(d.imageUrl)}
-                alt=""
-                onError={() => {
+            <img
+              src={imgBroken ? TRENDING_DEAL_PLACEHOLDER_IMG : resolveDealImageSrc(d.imageUrl)}
+              alt=""
+              onError={() => {
+                // Lần đầu lỗi thì fallback qua placeholder (và mark broken để không retry vòng lặp).
+                if (!imgBroken) {
                   setImgBroken(true)
                   onImageError?.(d.listingId)
-                }}
-                className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
-              />
-            ) : (
-              <span className="px-2 text-center text-[11px] font-medium text-stone-500">
-                Lỗi hiển thị
-              </span>
-            )}
+                }
+              }}
+              className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <span

@@ -9,7 +9,10 @@ import com.pricehawl.entity.ProductListing;
 import com.pricehawl.repository.TrendingDealRepositories.PriceRecordRepository;
 import com.pricehawl.repository.TrendingDealRepositories.TrendingDealRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -34,8 +37,28 @@ public class TrendingDealService {
     private final TrendingDealRepository trendingDealRepository;
     private final PriceRecordRepository priceRecordRepository;
 
+    /**
+     * Mặc định dùng cache (TTL do CacheManager cấu hình).
+     * Nếu refresh=true thì xóa cache (theo key) và tính lại ngay từ DB.
+     */
+    public TrendingDealsSnapshot getTrendingDealsSnapshot(boolean expand, boolean refresh) {
+        return refresh ? refreshTrendingDealsSnapshot(expand) : getTrendingDealsSnapshotCached(expand);
+    }
+
     @Cacheable(cacheNames = "trendingDeals", key = "#expand")
-    public TrendingDealsSnapshot getTrendingDealsSnapshot(boolean expand) {
+    public TrendingDealsSnapshot getTrendingDealsSnapshotCached(boolean expand) {
+        return buildSnapshot(expand);
+    }
+
+    /**
+     * Evict cache trước, sau đó tính lại từ DB và put lại vào cache.
+     * Lưu ý: phải là method public được gọi từ bên ngoài bean (controller) để Spring AOP áp dụng caching.
+     */
+    @Caching(
+            evict = @CacheEvict(cacheNames = "trendingDeals", key = "#expand"),
+            put = @CachePut(cacheNames = "trendingDeals", key = "#expand")
+    )
+    public TrendingDealsSnapshot refreshTrendingDealsSnapshot(boolean expand) {
         return buildSnapshot(expand);
     }
 
@@ -126,10 +149,7 @@ public class TrendingDealService {
         boolean flashSale = latest != null && Boolean.TRUE.equals(latest.getIsFlashSale());
 
         boolean pinned = l.getIsPinned() != null && Boolean.TRUE.equals(l.getIsPinned());
-        Integer popRaw = l.getProduct() != null ? l.getProduct().getPopularityScore() : null;
-        int popularity = popRaw == null ? 0 : popRaw;
-
-        String badge = computeBadge(pinned, popularity, discountPct);
+        String badge = computeBadge(pinned, discountPct);
 
         String explanation = TrendingDealEngine.Explanations.forDeal(l, calc, discountPct, latest);
 
@@ -151,7 +171,6 @@ public class TrendingDealService {
                 .isPinned(pinned)
                 .discountScore(calc.discountScore())
                 .trustScore(calc.trustScore())
-                .popularityScore(calc.popularityScore())
                 .freshnessScore(calc.freshnessScore())
                 .build();
     }
@@ -169,14 +188,11 @@ public class TrendingDealService {
         return res;
     }
 
-    private static String computeBadge(boolean pinned, int popularityScore, float discountPct) {
+    private static String computeBadge(boolean pinned, float discountPct) {
         if (pinned) {
             return "PINNED";
         }
-        if (popularityScore == 100) {
-            return "TRENDING";
-        }
-        if (popularityScore >= 80 && popularityScore < 100) {
+        if (discountPct >= 30f) {
             return "HOT";
         }
         if (discountPct > 20f) {

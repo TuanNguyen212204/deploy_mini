@@ -27,10 +27,11 @@ public class TrendingDealController {
 
     @GetMapping
     public ResponseEntity<List<TrendingDealResponse>> getTrendingDeals(
-            @RequestParam(defaultValue = "false") boolean expand) {
+            @RequestParam(defaultValue = "false") boolean expand,
+            @RequestParam(defaultValue = "false") boolean refresh) {
         TrendingDealsSnapshot snap;
         try {
-            snap = trendingDealService.getTrendingDealsSnapshot(expand);
+            snap = trendingDealService.getTrendingDealsSnapshot(expand, refresh);
         } catch (Exception e) {
             // If DB/network is slow/unreachable, fail fast with a clear status instead of hanging.
             throw new ResponseStatusException(

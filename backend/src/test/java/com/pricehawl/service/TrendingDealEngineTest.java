@@ -31,12 +31,12 @@ class TrendingDealEngineTest {
     }
 
     @Test
-    void rejectsWhenPopularityNotGreaterThanSixty() {
-        ProductListing listing = baseListingWithPopularity(60);
+    void acceptsEvenWhenPopularityLow() {
+        ProductListing listing = baseListingWithPopularity(0);
         LocalDateTime t0 = LocalDateTime.now().minusHours(1);
         List<PriceRecord> recs = List.of(
                 price(listing, t0, 100_000, 120_000, 16.7f));
-        assertFalse(TrendingDealEngine.isEligibleOrganic(listing, recs));
+        assertTrue(TrendingDealEngine.isEligibleOrganic(listing, recs));
     }
 
     @Test

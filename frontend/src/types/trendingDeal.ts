@@ -26,6 +26,5 @@ export type TrendingDealDto = {
   /** Thành phần điểm 0–1, từ ScoreCalculator khi backend bật đủ trường */
   discountScore?: number
   trustScore?: number
-  popularityScore?: number
   freshnessScore?: number
 }

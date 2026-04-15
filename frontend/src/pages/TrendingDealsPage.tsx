@@ -74,10 +74,6 @@ export default function TrendingDealsPage() {
             >
               Trending deals
             </h1>
-            <p className="mt-3 text-sm leading-7 text-stone-500">
-              Trang này hiển thị toàn bộ danh sách trending theo DealScore và phân
-              trang 5 sản phẩm.
-            </p>
           </div>
 
           <Link

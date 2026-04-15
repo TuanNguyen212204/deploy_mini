@@ -26,13 +26,12 @@ export function formatTrendingDealMeta(meta: TrendingDealsApiMeta): string {
 export const TRENDING_DEAL_SCORE_PARTS: Array<{
   key: keyof Pick<
     TrendingDealDto,
-    'discountScore' | 'trustScore' | 'popularityScore'
+    'discountScore' | 'trustScore'
   >
   label: string
 }> = [
   { key: 'discountScore', label: 'Giảm giá' },
   { key: 'trustScore', label: 'Tin cậy' },
-  { key: 'popularityScore', label: 'Phổ biến' },
 ]
 
 export function formatTrendingDealVnd(n: number): string {
