@@ -1,77 +1,76 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { wishlistService } from '../service/wishlistApi'; // Import cái service bạn vừa gửi
 import type { WishlistItem } from '../types/wishlist';
 import type { Product } from '../types/product';
 
 interface WishlistContextType {
   wishlist: WishlistItem[];
-  addToWishlist: (product: Product) => void;
-  removeFromWishlist: (productId: number) => void;
-  toggleAlert: (productId: number) => void;
-  isInWishlist: (productId: number) => boolean;
+  addToWishlist: (product: Product) => Promise<void>; // Chuyển thành async
+  removeFromWishlist: (productId: string) => Promise<void>;
+  isInWishlist: (productId: string) => boolean;
 }
 
+// Giả sử bạn có userId cố định hoặc lấy từ Auth, mình để tạm 'user-1'
+const CURRENT_USER_ID = '36af339f-b9b3-490c-8a6d-8cb6d14f3c68';
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Khởi tạo state từ LocalStorage (nếu có)
-  const [wishlist, setWishlist] = useState<WishlistItem[]>(() => {
-    const saved = localStorage.getItem('price_tracker_wishlist');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
-  // 2. Lưu vào LocalStorage mỗi khi wishlist thay đổi
+  // 1. Load dữ liệu từ Backend khi mở app
   useEffect(() => {
-    localStorage.setItem('price_tracker_wishlist', JSON.stringify(wishlist));
-  }, [wishlist]);
-
-  // 3. Hàm thêm sản phẩm vào Wishlist
-  const addToWishlist = (product: Product) => {
-    const newItem: WishlistItem = {
-      id: `ws-${Date.now()}`, // Tạo ID duy nhất
-      productId: product.id,
-      addedAt: new Date().toISOString(),
-      alertEnabled: true, // Mặc định bật thông báo
-      nearTarget: false,
-      priceChanged7dPercent: 0, // Ban đầu chưa có biến động
+    const fetchWishlist = async () => {
+      try {
+        const data = await wishlistService.getWishlist(CURRENT_USER_ID);
+        setWishlist(data);
+      } catch (error) {
+        console.error("Lỗi khi lấy wishlist từ server:", error);
+      }
     };
-    setWishlist((prev) => [...prev, newItem]);
+    fetchWishlist();
+  }, []);
+
+  // 2. Hàm thêm (Gọi API rồi mới cập nhật UI)
+  const addToWishlist = async (product: Product) => {
+    try {
+      // Gọi xuống Spring Boot
+      await wishlistService.add(CURRENT_USER_ID, String(product.id));
+      
+      // Nếu API thành công, cập nhật state để UI đổi màu trái tim ngay lập tức
+      const newItem: any = { productId: product.id, ...product };
+      setWishlist((prev) => [...prev, newItem]);
+      console.log("Đã thêm vào DB thành công!");
+    } catch (error) {
+      console.error("Không thể thêm vào DB:", error);
+      alert("Lỗi kết nối server!");
+    }
   };
 
-  // 4. Hàm xóa sản phẩm
-  const removeFromWishlist = (productId: number) => {
-    setWishlist((prev) => prev.filter((item) => item.productId !== productId));
+  // 3. Hàm xóa
+  const removeFromWishlist = async (productId: string) => {
+    try {
+      // Tìm ID của dòng wishlist để xóa (nếu backend yêu cầu wishlistId)
+      // Hoặc sửa service để xóa theo userId/productId
+      await wishlistService.remove(productId); 
+      setWishlist((prev) => prev.filter((item) => String(item.productId) !== String(productId)));
+    } catch (error) {
+      console.error("Lỗi khi xóa:", error);
+    }
   };
 
-  // 5. Hàm Bật/Tắt thông báo giá cho từng item
-  const toggleAlert = (productId: number) => {
-    setWishlist((prev) =>
-      prev.map((item) =>
-        item.productId === productId 
-          ? { ...item, alertEnabled: !item.alertEnabled } 
-          : item
-      )
-    );
-  };
-
-  // 6. Kiểm tra sản phẩm đã được lưu chưa
-  const isInWishlist = (productId: number) => {
-    return wishlist.some((item) => item.productId === productId);
+  const isInWishlist = (productId: string) => {
+    return wishlist.some((item) => String(item.productId) === String(productId));
   };
 
   return (
-    <WishlistContext.Provider 
-      value={{ wishlist, addToWishlist, removeFromWishlist, toggleAlert, isInWishlist }}
-    >
+    <WishlistContext.Provider value={{ wishlist, addToWishlist, removeFromWishlist, isInWishlist }}>
       {children}
     </WishlistContext.Provider>
   );
 };
 
-// Hook tùy chỉnh để sử dụng Context nhanh hơn
 export const useWishlist = () => {
   const context = useContext(WishlistContext);
-  if (!context) {
-    throw new Error('useWishlist must be used within a WishlistProvider');
-  }
+  if (!context) throw new Error('useWishlist must be used within a WishlistProvider');
   return context;
 };
