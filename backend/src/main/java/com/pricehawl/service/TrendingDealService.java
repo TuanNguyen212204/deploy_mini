@@ -153,11 +153,19 @@ public class TrendingDealService {
 
         String explanation = TrendingDealEngine.Explanations.forDeal(l, calc, discountPct, latest);
 
+        // Ưu tiên ảnh gốc của product; nếu thiếu thì fallback sang ảnh của listing (tương tự ProductService).
+        String imageUrl = null;
+        if (l.getProduct() != null && l.getProduct().getImageUrl() != null && !l.getProduct().getImageUrl().isEmpty()) {
+            imageUrl = l.getProduct().getImageUrl();
+        } else if (l.getPlatformImageUrl() != null && !l.getPlatformImageUrl().isEmpty()) {
+            imageUrl = l.getPlatformImageUrl();
+        }
+
         return TrendingDealResponse.builder()
                 .listingId(l.getId())
                 .productId(l.getProduct().getId())
                 .productName(l.getProduct().getName())
-                .imageUrl(l.getProduct().getImageUrl())
+                .imageUrl(imageUrl)
                 .platformName(l.getPlatform() != null && l.getPlatform().getName() != null
                         ? l.getPlatform().getName()
                         : (l.getPlatformName() != null ? l.getPlatformName() : ""))

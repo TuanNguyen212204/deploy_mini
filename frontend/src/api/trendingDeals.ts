@@ -1,4 +1,6 @@
 import type { TrendingDealDto, TrendingDealsApiMeta } from '../types/trendingDeal'
+import axios, { AxiosError } from 'axios'
+import type { AxiosResponse } from 'axios'
 
 /**
  * Base URL API:
@@ -26,10 +28,12 @@ export function resolveUseTrendingApi(): boolean {
   return true
 }
 
-function readTrendingMeta(res: Response): TrendingDealsApiMeta | null {
-  const computedAt = res.headers.get('X-Trending-Computed-At')
-  const next = res.headers.get('X-Trending-Next-Refresh-After')
-  const ttlRaw = res.headers.get('X-Trending-Cache-Ttl-Seconds')
+function readTrendingMetaFromAxios(res: AxiosResponse): TrendingDealsApiMeta | null {
+  const computedAt = (res.headers['x-trending-computed-at'] as string | undefined) ?? null
+  const next =
+    (res.headers['x-trending-next-refresh-after'] as string | undefined) ?? null
+  const ttlRaw =
+    (res.headers['x-trending-cache-ttl-seconds'] as string | undefined) ?? null
   if (!computedAt || !next) return null
   const cacheTtlSeconds = ttlRaw != null ? Number(ttlRaw) : NaN
   return {
@@ -45,14 +49,47 @@ function optionalScore(v: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function readImageUrls(raw: Record<string, unknown>): string[] | null {
+  const v = raw.imageUrls
+  if (!Array.isArray(v)) return null
+  const arr = v
+    .map((x) => (x == null ? '' : String(x).trim()))
+    .filter((s) => s.length > 0)
+  return arr.length > 0 ? arr : null
+}
+
+function readString(raw: Record<string, unknown>, key: string): string | null {
+  const v = raw[key]
+  if (v == null) return null
+  const s = String(v).trim()
+  return s.length > 0 ? s : null
+}
+
 function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
-  console.log('Raw deal from API:', raw)
   const pinned =
     typeof raw.pinned === 'boolean'
       ? raw.pinned
       : typeof raw.isPinned === 'boolean'
         ? raw.isPinned
         : false
+
+  const product =
+    raw.product != null && typeof raw.product === 'object'
+      ? (raw.product as Record<string, unknown>)
+      : null
+
+  const imageUrls =
+    readImageUrls(raw) ??
+    (product ? readImageUrls(product) : null) ??
+    null
+
+  const imageUrl =
+    imageUrls?.[0] ??
+    readString(raw, 'imageUrl') ??
+    readString(raw, 'imageURL') ??
+    (product ? readString(product, 'imageUrl') : null) ??
+    (product ? readString(product, 'imageURL') : null) ??
+    null
 
   return {
     listingId: String(raw.listingId ?? ''),
@@ -62,7 +99,8 @@ function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
         ? String(raw.variantKey)
         : undefined,
     productName: String(raw.productName ?? ''),
-    imageUrl: raw.imageUrl != null ? String(raw.imageUrl) : null,
+    imageUrl,
+    imageUrls,
     platformName: String(raw.platformName ?? ''),
     currentPrice: Number(raw.currentPrice ?? 0),
     originalPrice:
@@ -82,6 +120,11 @@ function normalizeDeal(raw: Record<string, unknown>): TrendingDealDto {
 export type TrendingDealsFetchResult = {
   deals: TrendingDealDto[]
   meta: TrendingDealsApiMeta | null
+  /**
+   * Dấu mốc thời gian do server cung cấp để phát hiện “backend chạy lại”.
+   * Backend hiện có header X-Trending-Computed-At, nên dùng làm proxy cho serverStartTime.
+   */
+  serverStartTime: string | null
 }
 
 export async function fetchTrendingDeals(
@@ -89,24 +132,41 @@ export async function fetchTrendingDeals(
   opts?: { refresh?: boolean },
 ): Promise<TrendingDealsFetchResult> {
   const base = getApiBaseUrl()
-  const params = new URLSearchParams()
-  if (expand) params.set('expand', 'true')
-  if (opts?.refresh) params.set('refresh', 'true')
-  const qs = params.toString()
-  const url = `${base}/api/trending-deals${qs ? `?${qs}` : ''}`
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`API ${res.status}: ${text || res.statusText}`)
-  }
-  const data: unknown = await res.json()
-  if (!Array.isArray(data)) {
-    throw new Error('API trả về không phải mảng')
-  }
-  return {
-    deals: data.map((row) => normalizeDeal(row as Record<string, unknown>)),
-    meta: readTrendingMeta(res),
+  const url = `${base}/api/trending-deals`
+  try {
+    const res = await axios.get<unknown>(url, {
+      params: {
+        ...(expand ? { expand: true } : null),
+        ...(opts?.refresh ? { refresh: true } : null),
+      },
+      headers: { Accept: 'application/json' },
+    })
+
+    const data: unknown = res.data
+    if (!Array.isArray(data)) {
+      throw new Error('API trả về không phải mảng')
+    }
+
+    const meta = readTrendingMetaFromAxios(res)
+    const serverStartTime = meta?.computedAt ?? null
+
+    return {
+      deals: data.map((row) => normalizeDeal(row as Record<string, unknown>)),
+      meta,
+      serverStartTime,
+    }
+  } catch (e: unknown) {
+    // Chuẩn hoá lỗi để hook dễ nhận biết "Network Error"
+    if (axios.isAxiosError(e)) {
+      const ae = e as AxiosError
+      const status = ae.response?.status
+      const statusText = ae.response?.statusText
+      if (status != null) {
+        throw new Error(`API ${status}: ${statusText || 'Request failed'}`)
+      }
+      // Không có response => lỗi network / CORS / server down
+      throw new Error(ae.message || 'Network Error')
+    }
+    throw e
   }
 }

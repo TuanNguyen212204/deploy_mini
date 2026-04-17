@@ -9,7 +9,7 @@ import { useTrendingDeals } from '../util/useTrendingDeals'
 const PAGE_SIZE = 5
 
 export default function TrendingDealsPage() {
-  const { deals, loading } = useTrendingDeals()
+  const { deals, loading, error } = useTrendingDeals()
   const [brokenListingIds, setBrokenListingIds] = useState<Set<string>>(
     () => new Set(),
   )
@@ -87,11 +87,15 @@ export default function TrendingDealsPage() {
         {loading && total === 0 && (
           <p className="mt-6 flex items-center gap-2 text-sm text-stone-500">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Đang tải trending…
+            Đang loading…
           </p>
         )}
 
-        {!loading && total === 0 && (
+        {!loading && total === 0 && error && (
+          <p className="mt-6 text-sm text-stone-500">Không tìm thấy sản phẩm</p>
+        )}
+
+        {!loading && total === 0 && !error && (
           <p className="mt-6 text-sm text-stone-500">Không có kết quả phù hợp.</p>
         )}
 

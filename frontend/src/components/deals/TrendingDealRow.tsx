@@ -2,20 +2,41 @@ import { Link } from 'react-router-dom'
 import type { TrendingDealDto } from '../../types/trendingDeal'
 import {
   TRENDING_DEAL_FONT_STACK,
-  TRENDING_DEAL_PLACEHOLDER_IMG,
   formatTrendingDealVnd,
   trendingDealBadgeClass,
 } from '../../util/trendingDealFormat'
 import { TrendingDealScoreBreakdown } from './TrendingDealScoreBreakdown'
 import { useState } from 'react'
+import { getApiBaseUrl } from '../../api/trendingDeals'
 
-function resolveDealImageSrc(imageUrl: string | null): string {
+function addUnsplashDefaults(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.hostname !== 'images.unsplash.com') return url
+    // Nếu DB chỉ lưu URL gốc không có query, thêm params để Unsplash trả ảnh ổn định.
+    if (!u.searchParams.has('auto')) u.searchParams.set('auto', 'format')
+    if (!u.searchParams.has('fit')) u.searchParams.set('fit', 'crop')
+    if (!u.searchParams.has('w')) u.searchParams.set('w', '600')
+    if (!u.searchParams.has('q')) u.searchParams.set('q', '80')
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
+function resolveDealImageSrc(imageUrl: string | null): string | null {
   const raw = (imageUrl ?? '').trim()
-  if (!raw) return TRENDING_DEAL_PLACEHOLDER_IMG
-  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+  if (!raw) return null
+  if (raw.startsWith('data:') || raw.startsWith('blob:')) return raw
+  if (raw.startsWith('http://') || raw.startsWith('https://'))
+    return addUnsplashDefaults(raw)
   if (raw.startsWith('//')) return `https:${raw}`
-  // Fallback an toàn cho URL tương đối / sai format
-  return TRENDING_DEAL_PLACEHOLDER_IMG
+  // ProductDetails đang dùng trực tiếp URL từ backend. Với Trending Deals,
+  // đôi khi DB lưu path tương đối (vd `/images/...` hoặc `uploads/...`),
+  // nên cần prefix base backend để ảnh hiển thị đúng trên :5173.
+  const base = getApiBaseUrl()
+  const abs = raw.startsWith('/') ? `${base}${raw}` : `${base}/${raw}`
+  return addUnsplashDefaults(abs)
 }
 
 export function TrendingDealRow({
@@ -28,6 +49,12 @@ export function TrendingDealRow({
   onImageError?: (listingId: string) => void
 }) {
   const [imgBroken, setImgBroken] = useState(false)
+  const candidate =
+    d.imageUrls && Array.isArray(d.imageUrls) && d.imageUrls.length > 0
+      ? d.imageUrls[0]
+      : d.imageUrl
+  const imgSrc = resolveDealImageSrc(candidate ?? null)
+  const showImage = !imgBroken && imgSrc != null
   return (
     <div className={nested ? 'max-w-full' : ''}>
       <Link
@@ -40,22 +67,29 @@ export function TrendingDealRow({
       >
         <div className="flex min-w-0 flex-1 gap-4 sm:items-center">
           <div
-            className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-stone-100/80 ring-1 ring-stone-200/80 transition-[box-shadow] duration-300 group-hover:ring-[#D4A5AA]/70 ${
+            className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/80 transition-[box-shadow] duration-300 group-hover:ring-[#D4A5AA]/70 ${
               nested ? 'h-20 w-20' : 'h-24 w-24'
             }`}
           >
-            <img
-              src={imgBroken ? TRENDING_DEAL_PLACEHOLDER_IMG : resolveDealImageSrc(d.imageUrl)}
-              alt=""
-              onError={() => {
-                // Lần đầu lỗi thì fallback qua placeholder (và mark broken để không retry vòng lặp).
-                if (!imgBroken) {
-                  setImgBroken(true)
-                  onImageError?.(d.listingId)
-                }
-              }}
-              className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
-            />
+            {showImage ? (
+              <img
+                src={imgSrc}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={() => {
+                  if (!imgBroken) {
+                    setImgBroken(true)
+                    onImageError?.(d.listingId)
+                  }
+                }}
+                className="h-full w-full object-cover object-center transition duration-300 group-hover:scale-[1.03]"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center px-2 text-center text-[11px] font-medium text-stone-500">
+                Lỗi hiển thị
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <span

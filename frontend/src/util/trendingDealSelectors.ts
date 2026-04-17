@@ -1,16 +1,42 @@
 import type { ProductSearch } from '../types/product'
 import type { TrendingDealDto } from '../types/trendingDeal'
-import { TRENDING_DEAL_PLACEHOLDER_IMG } from './trendingDealFormat'
+import { getApiBaseUrl } from '../api/trendingDeals'
 
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0
   return Math.max(0, Math.min(1, n))
 }
 
+function addUnsplashDefaults(url: string): string {
+  try {
+    const u = new URL(url)
+    if (u.hostname !== 'images.unsplash.com') return url
+    if (!u.searchParams.has('auto')) u.searchParams.set('auto', 'format')
+    if (!u.searchParams.has('fit')) u.searchParams.set('fit', 'crop')
+    if (!u.searchParams.has('w')) u.searchParams.set('w', '900')
+    if (!u.searchParams.has('q')) u.searchParams.set('q', '80')
+    return u.toString()
+  } catch {
+    return url
+  }
+}
+
 export function trendingDealToProductSearch(d: TrendingDealDto): ProductSearch {
-  const image = (d.imageUrl && String(d.imageUrl).trim().length > 0
-    ? d.imageUrl
-    : TRENDING_DEAL_PLACEHOLDER_IMG) as string
+  const rawCandidate =
+    d.imageUrls && Array.isArray(d.imageUrls) && d.imageUrls.length > 0
+      ? d.imageUrls[0]
+      : d.imageUrl
+  const raw = (rawCandidate ?? '').trim()
+  const base = getApiBaseUrl()
+  const image = (raw
+    ? raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:') || raw.startsWith('blob:')
+      ? addUnsplashDefaults(raw)
+      : raw.startsWith('//')
+        ? `https:${raw}`
+        : raw.startsWith('/')
+          ? addUnsplashDefaults(`${base}${raw}`)
+          : addUnsplashDefaults(`${base}/${raw}`)
+    : '') as string
 
   // Dữ liệu Trending Deals tối giản; bổ sung field để dùng chung UI card hiện có.
   const platform: any = {
@@ -28,7 +54,7 @@ export function trendingDealToProductSearch(d: TrendingDealDto): ProductSearch {
     brand: '',
     model: '',
     category: '',
-    images: [image],
+    images: image ? [image] : [],
     description: '',
     categoryName: '',
     brandName: '',
