@@ -12,6 +12,16 @@ export function trendingDealToProductSearch(d: TrendingDealDto): ProductSearch {
     ? d.imageUrl
     : TRENDING_DEAL_PLACEHOLDER_IMG) as string
 
+  // Dữ liệu Trending Deals tối giản; bổ sung field để dùng chung UI card hiện có.
+  const platform: any = {
+    platform: d.platformName,
+    url: '',
+    platformImageUrl: '',
+    finalPrice: d.currentPrice,
+    originalPrice: d.currentPrice,
+    isOfficial: false,
+  }
+
   return {
     id: d.productId,
     name: d.productName,
@@ -24,15 +34,7 @@ export function trendingDealToProductSearch(d: TrendingDealDto): ProductSearch {
     brandName: '',
     score: clamp01(d.dealScore ?? 0),
     imageUrl: image,
-    platforms: [
-      {
-        platform: d.platformName,
-        url: '',
-        platformImageUrl: '',
-        finalPrice: d.currentPrice,
-        isOfficial: false,
-      },
-    ],
+    platforms: [platform],
   }
 }
 

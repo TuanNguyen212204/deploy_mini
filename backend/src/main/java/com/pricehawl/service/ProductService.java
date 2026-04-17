@@ -51,7 +51,14 @@ public class ProductService {
                     .filter(p -> p.getId().equals(id))
                     .findFirst()
                     .orElse(null);
-            String imageUrl = (product != null) ? product.getImageUrl() : null;
+            String imageUrl = null;
+if (product != null) {
+    if (product.getImageUrl() != null && !product.getImageUrl().isEmpty()) {
+        imageUrl = product.getImageUrl(); // Lấy ảnh gốc nếu có
+    } else if (product.getListings() != null && !product.getListings().isEmpty()) {
+        imageUrl = product.getListings().get(0).getPlatformImageUrl(); // Không có thì mượn tạm ảnh của link bán đầu tiên
+    }
+}
 
             ProductSearchDTO dto = new ProductSearchDTO(
                     (UUID) r[0],

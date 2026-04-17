@@ -37,7 +37,7 @@ export interface ProductSearch {
 export interface PriceComparison {
   productId: string;
   productName: string;
-  productImageUrl: string;
+  imageUrls: string[];
   comparisons: PriceComparisonItem[];
 }
 

@@ -90,11 +90,11 @@ export default function ProductDetailPage() {
                 {/* Gallery + Summary */}
                 <section className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-start">
                     <div>
-                        <ProductGallery
-                            images={[comparison.productImageUrl]}
-                            title={comparison.productName}
-                            showLowestBadge={false}
-                        />
+<ProductGallery
+    images={comparison.imageUrls} // Bây giờ nó đã là một mảng [ảnh_gốc, ảnh_sàn1, ảnh_sàn2...]
+    title={comparison.productName}
+    showLowestBadge={false}
+/>
                     </div>
                     <div>
                         <ProductSummary comparison={comparison} />
