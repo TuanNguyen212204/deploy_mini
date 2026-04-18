@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 import ProductCompareCard from '../components/product/ProductCompareCard';
 import TrendingDealsSection from '../components/deals/TrendingDealsSection';
@@ -26,7 +27,7 @@ const tabOptions: Array<{ id: DealTab; label: string }> = [
 
 export default function DealsPage() {
   const [activeTab, setActiveTab] = useState<DealTab>('all');
-  const { deals, loading } = useTrendingDeals();
+  const { deals, loading, error } = useTrendingDeals();
 
   const mappedSections = useMemo(() => {
     const list = deals ?? [];
@@ -217,22 +218,34 @@ export default function DealsPage() {
 
           {filteredSections.length === 0 && (
             <div className="rounded-[34px] border border-stone-200/80 bg-white p-10 text-center shadow-[0_14px_35px_rgba(15,23,42,0.04)]">
-              <p className="text-[11px] uppercase tracking-normal text-[#8E6A72]">
-                Không có lựa chọn phù hợp
-              </p>
+              {loading ? (
+                <p className="flex items-center justify-center gap-2 text-sm text-stone-500">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                  <span>Đang tải </span>
+                </p>
+              ) : error ? (
+                <p className="text-sm leading-7 text-stone-500">
+                  Không tìm thấy sản phẩm phù hợp
+                </p>
+              ) : (
+                <>
+                  <p className="text-[11px] uppercase tracking-normal text-[#8E6A72]">
+                    Không có lựa chọn phù hợp
+                  </p>
 
-              <h2
-                className="mt-3 text-3xl text-stone-900"
-                style={{ fontFamily: FONT_STACK.serif }}
-              >
-                Chưa có deal khớp với bộ lọc này
-              </h2>
+                  <h2
+                    className="mt-3 text-3xl text-stone-900"
+                    style={{ fontFamily: FONT_STACK.serif }}
+                  >
+                    Chưa có deal khớp với bộ lọc này
+                  </h2>
 
-              <p className="mt-4 text-sm leading-7 text-stone-500">
-                {loading
-                  ? 'Đang tải dữ liệu deal từ backend…'
-                  : 'Thử chuyển sang nhóm khác để xem thêm những lựa chọn đang có tín hiệu giá đẹp hơn.'}
-              </p>
+                  <p className="mt-4 text-sm leading-7 text-stone-500">
+                    Thử chuyển sang nhóm khác để xem thêm những lựa chọn đang có tín hiệu giá đẹp
+                    hơn.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

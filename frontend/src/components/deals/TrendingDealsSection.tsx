@@ -65,13 +65,15 @@ export default function TrendingDealsSection() {
 
       {loading && list.length === 0 && (
         <p className="mt-8 flex items-center gap-2 text-sm text-stone-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Đang loading…
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+          <span>Đang tải </span>
         </p>
       )}
 
       {!loading && list.length === 0 && error && (
-        <p className="mt-8 text-sm text-stone-500">Không tìm thấy sản phẩm</p>
+        <p className="mt-8 text-sm text-stone-500">
+          Không tìm thấy sản phẩm phù hợp
+        </p>
       )}
 
       {!loading && list.length > 0 && (
@@ -95,7 +97,9 @@ export default function TrendingDealsSection() {
       )}
 
       {!loading && list.length === 0 && !error && (
-        <p className="mt-8 text-sm text-stone-500">Không có kết quả phù hợp.</p>
+        <p className="mt-8 text-sm text-stone-500">
+          Không tìm thấy sản phẩm phù hợp
+        </p>
       )}
 
       {!loading && sorted.length > 5 && (

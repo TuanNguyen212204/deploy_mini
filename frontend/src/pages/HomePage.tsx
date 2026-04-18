@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Loader2, Search } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import Badge from '../components/common/Badge';
@@ -49,7 +49,7 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const { deals } = useTrendingDeals();
+  const { deals, loading } = useTrendingDeals();
 
 
 
@@ -226,11 +226,35 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {homeHighlights.map((product) => (
+            {loading && homeHighlights.length === 0 && (
+              <div
+                className="flex min-h-[200px] flex-col items-center justify-center rounded-[28px] border border-stone-200/60 bg-white/50 py-14 text-sm text-stone-500"
+                aria-busy="true"
+                aria-live="polite"
+              >
+                <p className="flex items-center gap-2">
+                  <Loader2
+                    className="h-5 w-5 shrink-0 animate-spin text-[#8E6A72]"
+                    aria-hidden
+                  />
+                  Đang tải{' '}
+                </p>
+              </div>
+            )}
+
+            {!loading && homeHighlights.length === 0 && (
+              <div className="flex min-h-[160px] items-center justify-center rounded-[28px] border border-stone-200/60 bg-white/50 py-12 text-sm text-stone-500">
+                Không tìm thấy sản phẩm phù hợp
+              </div>
+            )}
+
+            {homeHighlights.length > 0 && (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {homeHighlights.map((product) => (
                   <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="mt-20">
