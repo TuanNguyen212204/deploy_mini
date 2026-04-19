@@ -92,7 +92,7 @@ export default function ProductSummary({ comparison }: ProductSummaryProps) {
 
                     {bestOffer.discountPct > 0 && (
                         <span className="pb-2 text-sm font-medium text-[#8E6A72]">
-                            -{Math.round(bestOffer.discountPct)}%
+                            -{bestOffer.discountPct}%
                         </span>
                     )}
                 </div>

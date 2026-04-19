@@ -1,6 +1,7 @@
 import type { ProductSearch } from '../types/product'
 import type { TrendingDealDto } from '../types/trendingDeal'
 import { getApiBaseUrl } from '../api/trendingDeals'
+import { normalizeOfferPrices } from './normalizeOfferPrices'
 
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0
@@ -38,13 +39,20 @@ export function trendingDealToProductSearch(d: TrendingDealDto): ProductSearch {
           : addUnsplashDefaults(`${base}/${raw}`)
     : '') as string
 
-  // Dữ liệu Trending Deals tối giản; bổ sung field để dùng chung UI card hiện có.
-  const platform: any = {
+  // Giá gốc lấy từ DTO (PriceRecord.originalPrice trên backend); chuẩn hóa + tính % giảm.
+  const rawOriginal =
+    d.originalPrice != null && Number.isFinite(Number(d.originalPrice))
+      ? Number(d.originalPrice)
+      : d.currentPrice
+  const n = normalizeOfferPrices(d.currentPrice, rawOriginal)
+
+  const platform = {
     platform: d.platformName,
     url: '',
     platformImageUrl: '',
-    finalPrice: d.currentPrice,
-    originalPrice: d.currentPrice,
+    finalPrice: n.price,
+    originalPrice: n.originalPrice,
+    discountPct: n.discountPct,
     isOfficial: false,
   }
 

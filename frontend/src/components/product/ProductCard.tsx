@@ -1,7 +1,7 @@
 import React from 'react';
 import { Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { Product } from '../../types/product';
+import type { Product, ProductSearch } from '../../types/product';
 import { useWishlist } from '../../context/WishlistContext'; 
 
 const FONT_STACK = {
@@ -10,7 +10,7 @@ const FONT_STACK = {
 } as const;
 
 type ProductCardProps = {
-  product: Product;
+  product: Product | ProductSearch;
 };
 
 const formatPrice = (price: number): string =>
@@ -30,6 +30,29 @@ export default function ProductCard({ product }: ProductCardProps) {
     (a, b) => a.finalPrice - b.finalPrice,
   )[0];
 
+  const finalRounded = Math.round(bestOffer.finalPrice);
+  const originalRounded = Math.round(
+    bestOffer.originalPrice ?? bestOffer.finalPrice,
+  );
+  const showSale =
+    originalRounded > finalRounded &&
+    originalRounded > 0 &&
+    Number.isFinite(originalRounded);
+  const discountPct =
+    typeof bestOffer.discountPct === 'number'
+      ? bestOffer.discountPct
+      : showSale
+        ? Math.min(
+            100,
+            Math.max(
+              0,
+              Math.round(
+                ((originalRounded - finalRounded) / originalRounded) * 100,
+              ),
+            ),
+          )
+        : 0;
+
   const imageSrc = product.images?.[0] || '/fallback-product.jpg';
 
   const handleWishlistClick = (e: React.MouseEvent) => {
@@ -39,7 +62,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     if (isSaved) {
       removeFromWishlist(String(product.id));
     } else {
-      addToWishlist(product);
+      addToWishlist(product as Product);
     }
   };
 
@@ -96,13 +119,22 @@ export default function ProductCard({ product }: ProductCardProps) {
               {product.name}
             </h3>
 
-            <div className="mt-5 flex items-baseline gap-3">
+            <div className="mt-5 flex flex-wrap items-baseline gap-3">
               <span className="text-[1.4rem] font-semibold tracking-tight text-stone-900">
-                {formatPrice(bestOffer.finalPrice)}
+                {formatPrice(finalRounded)}
               </span>
-              <span className="text-sm text-stone-300 line-through">
-                {formatPrice(bestOffer.originalPrice)}
-              </span>
+              {showSale && (
+                <>
+                  <span className="text-sm text-stone-300 line-through">
+                    {formatPrice(originalRounded)}
+                  </span>
+                  {discountPct > 0 && (
+                    <span className="text-sm font-medium text-[#8E6A72]">
+                      -{discountPct}%
+                    </span>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </article>

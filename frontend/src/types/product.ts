@@ -14,6 +14,10 @@ export interface Platform {
   url: string;
   platformImageUrl: string;
   finalPrice: number;
+  /** Giá gốc / niêm yết (đã làm tròn khi map từ API trending) */
+  originalPrice?: number;
+  /** Phần trăm giảm (0–100), làm tròn số nguyên */
+  discountPct?: number;
   isOfficial: boolean;
 }
 
@@ -108,6 +112,8 @@ export interface PlatformPrice {
   voucherDiscount: number;
   shippingFee: number;
   finalPrice: number;
+  /** Tuỳ chọn — khi có thì ưu tiên hiển thị % giảm */
+  discountPct?: number;
   rating: number;
   soldCount: number;
   inStock: boolean;

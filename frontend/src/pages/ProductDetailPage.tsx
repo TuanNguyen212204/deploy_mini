@@ -9,6 +9,7 @@ import PriceChart from '../components/product/PriceChart';
 
 import { priceComparison, priceHistory } from '../service/ProductService';
 import type { PriceComparison, PriceHistory } from '../types/product';
+import { normalizePriceComparison } from '../util/normalizeOfferPrices';
 
 const FONT_STACK = {
     serif: '"Times New Roman", Georgia, serif',
@@ -31,7 +32,7 @@ export default function ProductDetailPage() {
             priceHistory(id),
         ])
             .then(([comp, hist]) => {
-                setComparison(comp);
+                setComparison(normalizePriceComparison(comp));
                 setHistory(hist);
             })
             .catch(err => console.error(err))

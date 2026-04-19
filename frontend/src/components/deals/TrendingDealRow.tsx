@@ -55,6 +55,25 @@ export function TrendingDealRow({
       : d.imageUrl
   const imgSrc = resolveDealImageSrc(candidate ?? null)
   const showImage = !imgBroken && imgSrc != null
+
+  const rowBestPrice = Math.round(Number(d.currentPrice))
+  const rowListPrice =
+    d.originalPrice != null && Number.isFinite(Number(d.originalPrice))
+      ? Math.round(Number(d.originalPrice))
+      : null
+  const rowShowOrigStrike =
+    rowListPrice != null && rowListPrice > 0 && rowListPrice > rowBestPrice
+  const rowDiscountPct =
+    rowShowOrigStrike && rowListPrice != null
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(((rowListPrice - rowBestPrice) / rowListPrice) * 100),
+          ),
+        )
+      : 0
+
   return (
     <div className={nested ? 'max-w-full' : ''}>
       <Link
@@ -115,19 +134,17 @@ export function TrendingDealRow({
             <p className="text-xs text-stone-500">Giá tốt nhất</p>
             <p className="text-[10px] text-stone-400">Đã gồm voucher và phí ship</p>
             <p className="mt-1 text-lg font-semibold text-stone-900">
-              {formatTrendingDealVnd(d.currentPrice)}
+              {formatTrendingDealVnd(rowBestPrice)}
             </p>
-            {d.originalPrice != null && d.originalPrice > 0 && (
+            {rowShowOrigStrike && rowListPrice != null && (
               <p className="text-xs text-stone-400 line-through">
-                {formatTrendingDealVnd(d.originalPrice)}
+                {formatTrendingDealVnd(rowListPrice)}
               </p>
             )}
             <p className="mt-1 text-[11px] text-stone-500">
               Deal score:{' '}
               {Math.round(Math.min(1, Math.max(0, d.dealScore)) * 100)}%
-              {d.discountPercent > 0 && (
-                <> · Giảm ~{Math.round(d.discountPercent)}%</>
-              )}
+              {rowDiscountPct > 0 && <> · Giảm ~{rowDiscountPct}%</>}
             </p>
           </div>
         </div>
