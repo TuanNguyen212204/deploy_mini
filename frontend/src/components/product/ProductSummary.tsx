@@ -2,7 +2,8 @@ import { Bell, Heart, MoveUpRight } from 'lucide-react';
 import Badge from '../common/Badge';
 import PlatformPill from '../common/PlatformPill';
 import type { PriceComparison } from '../../types/product';
-import { useWishlist } from '../../context/WishlistContext'; // 1. Import Context
+import type { WishlistComparisonStub } from '../../types/wishlist';
+import { useWishlist } from '../../context/useWishlist';
 
 const FONT_STACK = {
     serif: '"Times New Roman", Georgia, serif',
@@ -25,8 +26,7 @@ export default function ProductSummary({ comparison }: ProductSummaryProps) {
     // 2. Lấy hàm từ WishlistContext
     const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
-    // Giả sử PriceComparison truyền vào có chứa ID của sản phẩm (productId hoặc id)
-    const productId = String((comparison as any).productId || (comparison as any).id);
+    const productId = comparison.productId;
     const isSaved = isInWishlist(productId);
 
     const sorted = [...comparison.comparisons].sort((a, b) => a.price - b.price);
@@ -39,13 +39,12 @@ export default function ProductSummary({ comparison }: ProductSummaryProps) {
         if (isSaved) {
             await removeFromWishlist(productId);
         } else {
-            // Giả lập object Product để hàm addToWishlist nhận diện đúng
-            const productData: any = {
+            const payload: WishlistComparisonStub = {
                 id: productId,
                 name: comparison.productName,
-                platforms: comparison.comparisons
+                platforms: comparison.comparisons,
             };
-            await addToWishlist(productData);
+            await addToWishlist(payload);
         }
     };
 

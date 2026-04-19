@@ -26,17 +26,28 @@ export default function ProductDetailPage() {
     useEffect(() => {
         if (!id) return;
 
-        setLoading(true);
-        Promise.all([
-            priceComparison(id),
-            priceHistory(id),
-        ])
-            .then(([comp, hist]) => {
+        let cancelled = false;
+
+        void (async () => {
+            setLoading(true);
+            try {
+                const [comp, hist] = await Promise.all([
+                    priceComparison(id),
+                    priceHistory(id),
+                ]);
+                if (cancelled) return;
                 setComparison(normalizePriceComparison(comp));
                 setHistory(hist);
-            })
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false));
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
     }, [id]);
 
     // Loading state

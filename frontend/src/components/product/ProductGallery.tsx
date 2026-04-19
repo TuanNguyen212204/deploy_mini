@@ -15,13 +15,15 @@ export default function ProductGallery({
   title,
   showLowestBadge = false,
 }: ProductGalleryProps) {
-  const safeImages = images.length > 0 ? images : [FALLBACK_IMG];
   const [activeIndex, setActiveIndex] = useState(0);
   const [broken, setBroken] = useState<Record<number, boolean>>({});
 
   const srcAt = useCallback(
-    (index: number) => (broken[index] ? FALLBACK_IMG : safeImages[index]),
-    [broken, safeImages],
+    (index: number) => {
+      const imgs = images.length > 0 ? images : [FALLBACK_IMG];
+      return broken[index] ? FALLBACK_IMG : imgs[index];
+    },
+    [broken, images],
   );
 
   const onThumbError = (index: number) => {

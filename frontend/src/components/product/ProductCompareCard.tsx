@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import Badge from '../common/Badge';
 import PlatformPill from '../common/PlatformPill';
 import type { ProductSearch } from '../../types/product';
-import { useWishlist } from '../../context/WishlistContext';
+import { useWishlist } from '../../context/useWishlist';
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -35,7 +35,7 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
       if (isSaved) {
         await removeFromWishlist(String(product.id));
       } else {
-        await addToWishlist(product as any);
+        await addToWishlist(product);
       }
     } catch (error) {
       console.error('Lỗi thao tác wishlist:', error);

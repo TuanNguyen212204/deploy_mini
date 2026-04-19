@@ -2,7 +2,7 @@ import React from 'react';
 import { Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Product, ProductSearch } from '../../types/product';
-import { useWishlist } from '../../context/WishlistContext'; 
+import { useWishlist } from '../../context/useWishlist'; 
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -62,7 +62,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     if (isSaved) {
       removeFromWishlist(String(product.id));
     } else {
-      addToWishlist(product as Product);
+      addToWishlist(product);
     }
   };
 

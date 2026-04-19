@@ -14,7 +14,7 @@ export default function TrendingDealsSection() {
     () => new Set(),
   )
 
-  const list = deals ?? []
+  const list = useMemo(() => deals ?? [], [deals])
   const sorted = useMemo(() => {
     const arr = [...list]
     arr.sort((a, b) => {

@@ -71,6 +71,7 @@ export function useTrendingDeals() {
   const [error, setError] = useState<string | null>(null)
   const [usingMockFallback, setUsingMockFallback] = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect -- khởi tạo/cache trending phức tạp, nhiều nhánh setState có chủ đích */
   useEffect(() => {
     if (!useApi) return
 
@@ -155,10 +156,12 @@ export function useTrendingDeals() {
             return fetchFresh()
           }
 
-          const cacheMissingImages = latestCache.deals.some((d) => {
-            const single = (d as any)?.imageUrl
-            const arr = (d as any)?.imageUrls
-            const hasArr = Array.isArray(arr) && arr.some((x: unknown) => String(x ?? '').trim().length > 0)
+          const cacheMissingImages = latestCache.deals.some((d: TrendingDealDto) => {
+            const single = d.imageUrl
+            const arr = d.imageUrls
+            const hasArr =
+              Array.isArray(arr) &&
+              arr.some((x: unknown) => String(x ?? '').trim().length > 0)
             const hasSingle = typeof single === 'string' && single.trim().length > 0
             return !(hasArr || hasSingle)
           })
@@ -196,6 +199,7 @@ export function useTrendingDeals() {
       cancelled = true
     }
   }, [useApi, allowMockFallback])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { deals, loading, meta, useApi, error, usingMockFallback }
 }

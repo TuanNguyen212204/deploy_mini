@@ -48,6 +48,8 @@ export default function AlertModal({
   const [note, setNote] = useState('');
   const [isCreated, setIsCreated] = useState(false);
 
+  /* Đồng bộ form khi mở modal — reset có chủ đích, không phụ thuộc external subscription */
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!isOpen) return;
     setTargetPrice(defaultPrice ? String(defaultPrice) : '');
@@ -57,6 +59,7 @@ export default function AlertModal({
     setNote('');
     setIsCreated(false);
   }, [defaultPlatform, defaultPrice, isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen) return null;
 

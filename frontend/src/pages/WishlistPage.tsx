@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import Badge from '../components/common/Badge';
 import PlatformPill from '../components/common/PlatformPill';
 import AppHeader from '../components/layout/AppHeader';
-import { useWishlist } from '../context/WishlistContext';
+import { useWishlist } from '../context/useWishlist';
+import type { WishlistDisplayItem } from '../types/wishlist';
 
 const FONT_STACK = {
   serif: '"Times New Roman", Georgia, serif',
@@ -55,8 +56,8 @@ export default function WishlistPage() {
               <Link to="/" className="mt-4 inline-block text-[#8D7663] underline">Khám phá sản phẩm ngay</Link>
             </div>
           ) : (
-            wishlist.map((item: any) => {
-              const pId = item.productId || item.id;
+            wishlist.map((item: WishlistDisplayItem) => {
+              const pId = item.productId || item.id || '';
               
               return (
                 <article key={pId} className="relative z-10 rounded-[34px] border border-[#DDD2C6] bg-[#F8F4EE] p-6 shadow-sm transition-all hover:-translate-y-1">
@@ -103,7 +104,7 @@ export default function WishlistPage() {
                           <p className="text-[10px] uppercase text-[#9A8A7A]">Sàn tốt nhất</p>
                           <div className="mt-3">
                             {item.platformName ? (
-                                <PlatformPill platform={item.platformName as any} compact />
+                                <PlatformPill platform={item.platformName} compact />
                             ) : (
                                 <span className="text-sm text-[#8D7663]">-</span>
                             )}
