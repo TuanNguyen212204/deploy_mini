@@ -13,7 +13,9 @@ const FONT_STACK = {
 } as const;
 
 type ProductCompareCardProps = {
-  product: ProductSearch;
+  // Cho phép undefined để component không bị crash khi parent chưa fetch
+  // xong dữ liệu hoặc API trả về 500 (array item có thể là null).
+  product: ProductSearch | null | undefined;
 };
 
 const formatPrice = (price: number): string =>
@@ -25,6 +27,12 @@ const formatPrice = (price: number): string =>
 
 export default function ProductCompareCard({ product }: ProductCompareCardProps) {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+
+  // Early return để không bao giờ crash giao diện khi backend 500 / data thiếu.
+  if (!product || !product.id) {
+    return null;
+  }
+
   const isSaved = isInWishlist(String(product.id));
 
   const handleWishlistClick = async (e: React.MouseEvent) => {
@@ -42,11 +50,17 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
     }
   };
 
-  const sorted = [...product.platforms].sort((a, b) => a.finalPrice - b.finalPrice);
+  // Null-safe sau khi merge: API có thể không trả về `images`/`platforms`,
+  // hoặc trả 500 → các field này có thể undefined. Luôn ép về mảng trước khi
+  // sort/truy cập index để tránh "Cannot read properties of undefined".
+  const platforms = Array.isArray(product?.platforms) ? product.platforms : [];
+  const sorted = [...platforms].sort((a, b) => (a?.finalPrice ?? 0) - (b?.finalPrice ?? 0));
   const bestOffer = sorted[0];
   const worstOffer = sorted[sorted.length - 1];
-  const spread = worstOffer && bestOffer ? worstOffer.finalPrice - bestOffer.finalPrice : 0;
-  const coverSrc = product.images[0] ?? product.imageUrl ?? '';
+  const spread =
+    worstOffer && bestOffer ? (worstOffer.finalPrice ?? 0) - (bestOffer.finalPrice ?? 0) : 0;
+  const coverSrc =
+    product?.images?.[0] ?? product?.imageUrl ?? '/fallback-product.jpg';
 
   return (
     <article
@@ -94,8 +108,8 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
             <p className="mt-3 text-sm text-[#74685F]">{product.categoryName}</p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {product.score >= 0.8 && <Badge variant="brand">Phù hợp cao</Badge>}
-              {product.platforms.some((p) => p.isOfficial) && <Badge variant="soft">Official</Badge>}
+              {(product?.score ?? 0) >= 0.8 && <Badge variant="brand">Phù hợp cao</Badge>}
+              {platforms.some((p) => p?.isOfficial) && <Badge variant="soft">Official</Badge>}
             </div>
           </div>
         </Link>

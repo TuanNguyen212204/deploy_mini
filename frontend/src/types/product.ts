@@ -28,12 +28,15 @@ export interface ProductSearch {
   model: string;
   category: string;
   subcategory?: string;
-  images: string[];
+  // Backend chỉ trả `imageUrl` (string), `images` có thể không có hoặc rỗng.
+  // Để optional để FE buộc phải null-check khi truy cập images[0].
+  images?: string[];
   description: string;
   categoryName: string;
   brandName: string;
   score: number;
   imageUrl: string;
+  // Có thể undefined khi API lỗi / chưa có dữ liệu.
   platforms: Platform[];
 }
 
