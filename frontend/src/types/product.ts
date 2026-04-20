@@ -1,7 +1,15 @@
-/** Tên sàn: API chính + giá trị dùng trong mock alert / legacy */
+/** Tên sàn: GIÁ TRỊ phải TRÙNG CHÍNH XÁC với platform.name trong DB (kể cả
+ *  hoa/thường), vì API trả về đúng chuỗi này và FE dùng làm key lookup
+ *  (PlatformPill style, chart color, so sánh ===).
+ *  - DB hiện có: 'Cocolux', 'guardian' (lowercase), 'Hasaki'.
+ *  - Để hiển thị chip UI đẹp ("Guardian" capitalized), dùng map label riêng
+ *    trong PlatformPill / SearchResultsPage — KHÔNG sửa value ở type này.
+ *  - Backend filter lowercase 2 phía nên case-insensitive khi compare, nhưng
+ *    value FE vẫn phải giống API để lookup ở client không bị miss.
+ */
 export type PlatformName =
-  | 'Coculux'
-  | 'Gardian'
+  | 'Cocolux'
+  | 'guardian'
   | 'Hasaki'
   | 'Shopee'
   | 'Lazada'

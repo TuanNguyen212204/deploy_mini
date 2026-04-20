@@ -42,7 +42,7 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Gardian',
+                platform: 'guardian',
                 shopName: 'Shiseido Mall',
                 isOfficial: true,
                 currentPrice: 499000,
@@ -160,7 +160,7 @@ export const mockProducts: Product[] = [
                 url: '#',
             },
             {
-                platform: 'Gardian',
+                platform: 'guardian',
                 shopName: 'Beauty Official Mall',
                 isOfficial: true,
                 currentPrice: 295000,

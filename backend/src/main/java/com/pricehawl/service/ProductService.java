@@ -13,35 +13,21 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// ==========================================================================
-// ProductService
-// --------------------------------------------------------------------------
-// Fix sau merge (endpoint /products/search bị 500 + giá hiển thị 0đ):
-//   1. @Transactional(readOnly = true) → giữ Hibernate session mở để có thể
-//      truy cập các collection LAZY (product.getListings()) mà không ném
-//      LazyInitializationException.
-//   2. Dùng repository.findAllByIdIn(...) (có @EntityGraph(attributePaths =
-//      {"listings"})) thay vì findAllById(...) mặc định, để fetch listings
-//      một lần (tránh N+1 và tránh LazyInit).
-//   3. Null-safe toàn bộ truy cập: rows có thể null/empty, mỗi row có thể
-//      thiếu cột, cast UUID/Number có thể lỗi → bọc try/catch từng row để
-//      1 row hỏng không làm 500 toàn bộ response.
-//   4. Luôn trả về platforms là List rỗng (không bao giờ null) để frontend
-//      có thể map/.sort an toàn.
-//   5. BATCH lấy PriceRecord mới nhất cho tất cả listing trong 1 query
-//      (findLatestByProductListingIdIn) → điền vào PlatformDTO.finalPrice
-//      thay cho fake 0.0 trước đây.
-// ==========================================================================
+
 @Service
 public class ProductService {
 
@@ -58,10 +44,40 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductSearchDTO> search(String keyword) {
+        // Giữ signature cũ → các caller/test hiện tại không cần đổi.
+        // Delegate sang overload có filter platform = null (không filter).
+        return search(keyword, null);
+    }
+
+    /**
+     * Search + filter động theo platform.
+     *
+     * @param keyword     keyword fuzzy search
+     * @param platforms   danh sách platform name muốn lọc (ví dụ ["Hasaki","Cocolux"]).
+     *                    Null/empty → không filter platform, hành vi như search(keyword).
+     *
+     * Cách xây dựng dynamic filter platform:
+     *  - Không đổi native query fuzzySearchRaw (để không tác động đến ranking/score).
+     *  - Sau khi đã có danh sách products kèm listings, filter PlatformDTO theo
+     *    `platform name` (case-insensitive) ở tầng service. Product không còn
+     *    platform nào khớp → loại khỏi kết quả.
+     *
+     * Cách xử lý multiple platforms:
+     *  - Chuẩn hoá sang lowercase Set để O(1) contains và không phụ thuộc thứ tự.
+     *  - Null phần tử / chuỗi rỗng được bỏ qua → tránh filter toàn bộ về rỗng do
+     *    FE gửi "platform=" rỗng.
+     *
+     * Cách xử lý platform null (không filter):
+     *  - `platformFilter == null || isEmpty` → return early mà không touch
+     *    danh sách PlatformDTO gốc.
+     */
+    @Transactional(readOnly = true)
+    public List<ProductSearchDTO> search(String keyword, List<String> platforms) {
         if (keyword == null || keyword.trim().length() < 2) {
             return Collections.emptyList();
         }
         final String kw = keyword.trim();
+        final Set<String> platformFilter = normalizePlatformFilter(platforms);
 
         List<Object[]> rows;
         try {
@@ -80,8 +96,7 @@ public class ProductService {
                 .distinct()
                 .toList();
 
-        // findAllByIdIn có @EntityGraph(attributePaths = {"listings"}) nên
-        // listings sẽ được fetch cùng product, tránh LazyInitializationException.
+       
         Map<UUID, Product> productById = new HashMap<>();
         if (!ids.isEmpty()) {
             try {
@@ -97,8 +112,7 @@ public class ProductService {
                 log.warn("findAllByIdIn failed, tiếp tục với map rỗng: {}", ex.getMessage());
             }
         }
-
-        // Batch lấy giá mới nhất cho TẤT CẢ listing trong 1 query (tránh N+1).
+ 
         final Map<UUID, PriceRecord> latestPriceByListing =
                 fetchLatestPrices(productById.values());
 
@@ -113,12 +127,61 @@ public class ProductService {
                     }
                 })
                 .filter(Objects::nonNull)
+                // Áp filter platform sau khi đã map xong. Nếu platformFilter
+                // null → applyPlatformFilter trả về DTO không đổi.
+                .map(dto -> applyPlatformFilter(dto, platformFilter))
+                .filter(Objects::nonNull)
                 .toList();
     }
 
-    // --------------------------------------------------------------------------
-    // Helpers
-    // --------------------------------------------------------------------------
+    /**
+     * Lọc danh sách platforms của một DTO theo filter đã chuẩn hoá.
+     * @return DTO mới với list đã lọc; null nếu filter không rỗng nhưng không còn
+     *         platform nào khớp (caller loại bỏ khỏi kết quả).
+     */
+    private static ProductSearchDTO applyPlatformFilter(
+            ProductSearchDTO dto,
+            Set<String> platformFilter) {
+        if (dto == null) return null;
+        if (platformFilter == null || platformFilter.isEmpty()) {
+            // Không filter → trả thẳng DTO gốc để tránh copy không cần thiết.
+            return dto;
+        }
+        List<PlatformDTO> src = dto.getPlatforms();
+        if (src == null || src.isEmpty()) {
+            // Không có platform nào mà filter yêu cầu ít nhất 1 → loại.
+            return null;
+        }
+        List<PlatformDTO> filtered = new ArrayList<>(src.size());
+        for (PlatformDTO p : src) {
+            if (p == null || p.getPlatform() == null) continue;
+            String n = p.getPlatform().trim().toLowerCase(Locale.ROOT);
+            if (platformFilter.contains(n)) {
+                filtered.add(p);
+            }
+        }
+        if (filtered.isEmpty()) {
+            return null;
+        }
+        dto.setPlatforms(filtered);
+        return dto;
+    }
+
+    /**
+     * Chuẩn hoá list platform query param: trim + lowercase + bỏ rỗng + dedup.
+     * Trả về null khi không có filter hợp lệ (→ service bỏ qua filter).
+     */
+    private static Set<String> normalizePlatformFilter(List<String> raw) {
+        if (raw == null || raw.isEmpty()) return null;
+        Set<String> out = new LinkedHashSet<>();
+        for (String s : raw) {
+            if (s == null) continue;
+            String n = s.trim();
+            if (n.isEmpty()) continue;
+            out.add(n.toLowerCase(Locale.ROOT));
+        }
+        return out.isEmpty() ? null : out;
+    }
 
     /**
      * Gom toàn bộ listing id từ các product đã load, gọi 1 query batch để lấy
@@ -234,7 +297,7 @@ public class ProductService {
                             ? null
                             : latestPriceByListing.get(l.getId());
                     p.setFinalPrice(toDoublePrice(latest));
-                    p.setIsOfficial(Boolean.TRUE); // TODO: map từ DB khi có field chính hãng
+                    p.setIsOfficial(Boolean.TRUE); 
                     return p;
                 })
                 .toList();

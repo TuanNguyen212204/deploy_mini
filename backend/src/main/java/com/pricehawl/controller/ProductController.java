@@ -13,22 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Collections;
 import java.util.List;
 
-// ==========================================================================
-// ProductController — /products/** và /api/products/** (alias sau khi merge)
-// --------------------------------------------------------------------------
-// Checklist đã cover (post-merge):
-//   1. @RequestParam(q) null/rỗng:
-//        required = false, defaultValue = "" + guard trim().isEmpty().
-//   2. Repository/JPA đổi cột sau merge → service đã bọc try-catch quanh
-//        fuzzySearchRaw / findAllByIdIn và log ex.getMessage() đầy đủ.
-//        SQLGrammarException ("column xxx does not exist") sẽ hiện rõ ở log.
-//   3. Service không được trả null → controller vẫn double-check `result == null`
-//        và quy về Collections.emptyList().
-//   4. Toàn bộ handler bọc try-catch, log ex.getMessage() + stacktrace
-//        (truyền exception làm tham số cuối cho SLF4J).
-//   5. Support cả path cũ + path mới: FE legacy gọi `/products/search`,
-//        FE mới gọi `/api/products/search` → cùng 1 handler.
-// ==========================================================================
+
 @RestController
 @RequestMapping(path = {"/products", "/api/products"})
 @CrossOrigin(origins = "http://localhost:5173")
@@ -44,21 +29,22 @@ public class ProductController {
 
     @GetMapping("/search")
     public List<ProductSearchDTO> search(
-            @RequestParam(value = "q", required = false, defaultValue = "") String keyword) {
+            @RequestParam(value = "q", required = false, defaultValue = "") String keyword,
+            // Hỗ trợ cả 2 cú pháp: `?platform=Hasaki&platform=Cocolux` (chuẩn REST,
+            // FE gửi mặc định) và `?platform=Hasaki,Cocolux` (fallback, sẽ được
+            // tách ở service layer nếu cần). Null khi FE không chọn sàn nào.
+            @RequestParam(value = "platform", required = false) List<String> platforms) {
 
-        // 1. Guard null/rỗng ở tầng controller (service cũng đã guard, nhưng
-        //    chặn ngay để tiết kiệm 1 call + log rõ ràng).
+
         if (keyword == null || keyword.trim().isEmpty()) {
             log.debug("/products/search: keyword rỗng → trả về []");
             return Collections.emptyList();
         }
 
-        // 4. Toàn bộ handler bọc try-catch. Log cả message lẫn stacktrace
-        //    (tham số thứ 3 của SLF4J là Throwable, tự in stack đầy đủ).
         try {
-            List<ProductSearchDTO> result = service.search(keyword);
+            List<ProductSearchDTO> result = service.search(keyword, platforms);
 
-            // 3. Double-check: service KHÔNG được trả null, nhưng vẫn phòng hờ.
+            
             if (result == null) {
                 log.warn("/products/search: service.search(\"{}\") trả về null, quy về [] để FE render an toàn", keyword);
                 return Collections.emptyList();
@@ -66,9 +52,7 @@ public class ProductController {
             return result;
 
         } catch (Exception ex) {
-            // Log message (ngắn) + stacktrace (chi tiết). Sau khi merge nếu
-            // Repository/JPA đổi cột, ở đây sẽ thấy ngay
-            // SQLGrammarException / PropertyReferenceException kèm line.
+            
             log.error(
                     "/products/search FAILED — keyword='{}', exception={}, message={}",
                     keyword,
