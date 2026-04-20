@@ -103,7 +103,13 @@ public class TrendingDealService {
                 .toList();
 
         // --- Dedup theo product (tránh nhiều listing cùng 1 sản phẩm) ---
+        // Null-safe: listing/product có thể null do lỗi dữ liệu → bỏ qua thay
+        // vì ném NPE và làm 500 toàn bộ response.
         Map<UUID, List<TrendingDealDTO>> groupedByProduct = scored.stream()
+                .filter(d -> d != null
+                        && d.listing() != null
+                        && d.listing().getProduct() != null
+                        && d.listing().getProduct().getId() != null)
                 .collect(Collectors.groupingBy(d -> d.listing().getProduct().getId()));
 
         List<TrendingDealDTO> representatives = new ArrayList<>();
@@ -127,13 +133,20 @@ public class TrendingDealService {
         List<TrendingDealResponse> body;
         // Backend luôn trả full danh sách đã chấm điểm (không giới hạn 5),
         // việc hiển thị/pagination để frontend xử lý.
+        // Null-safe ở tầng mapping: bỏ qua deal bị lỗi để không ném NPE/500.
         body = representatives.stream()
-                .map(
-                        d ->
-                                mapToResponse(
-                                        d,
-                                        priceConflictByProduct.get(
-                                                d.listing().getProduct().getId())))
+                .map(d -> {
+                    try {
+                        if (d == null || d.listing() == null || d.listing().getProduct() == null) {
+                            return null;
+                        }
+                        UUID pid = d.listing().getProduct().getId();
+                        return mapToResponse(d, pid != null ? priceConflictByProduct.get(pid) : Boolean.FALSE);
+                    } catch (Exception ex) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
                 .toList();
 
         return new TrendingDealsSnapshot(
@@ -143,17 +156,20 @@ public class TrendingDealService {
     }
 
     private TrendingDealResponse mapToResponse(ProductListing l, DealScoreCalculation calc, PriceRecord latest) {
+        if (l == null) {
+            return null;
+        }
         Integer currentPrice = latest != null ? latest.getPrice() : null;
         Integer originalPrice = latest != null ? latest.getOriginalPrice() : null;
         float discountPct = latest != null ? (float) TrendingDealEngine.platformDiscountPct(latest) : 0f;
         boolean flashSale = latest != null && Boolean.TRUE.equals(latest.getIsFlashSale());
 
-        boolean pinned = l.getIsPinned() != null && Boolean.TRUE.equals(l.getIsPinned());
+        boolean pinned = Boolean.TRUE.equals(l.getIsPinned());
         String badge = computeBadge(pinned, discountPct);
 
         String explanation = TrendingDealEngine.Explanations.forDeal(l, calc, discountPct, latest);
 
-        // Ưu tiên ảnh gốc của product; nếu thiếu thì fallback sang ảnh của listing (tương tự ProductService).
+        // Ưu tiên ảnh gốc của product; nếu thiếu thì fallback sang ảnh của listing.
         String imageUrl = null;
         if (l.getProduct() != null && l.getProduct().getImageUrl() != null && !l.getProduct().getImageUrl().isEmpty()) {
             imageUrl = l.getProduct().getImageUrl();
@@ -161,10 +177,17 @@ public class TrendingDealService {
             imageUrl = l.getPlatformImageUrl();
         }
 
+        // Null-safe cho product (JOIN FETCH về lý thuyết luôn có product,
+        // nhưng vẫn defensive để không ném NPE khi dữ liệu bẩn).
+        UUID productId = l.getProduct() != null ? l.getProduct().getId() : null;
+        String productName = l.getProduct() != null ? l.getProduct().getName() : null;
+
+        DealScoreCalculation safeCalc = calc != null ? calc : DealScoreCalculation.zero();
+
         return TrendingDealResponse.builder()
                 .listingId(l.getId())
-                .productId(l.getProduct().getId())
-                .productName(l.getProduct().getName())
+                .productId(productId)
+                .productName(productName)
                 .imageUrl(imageUrl)
                 .platformName(l.getPlatform() != null && l.getPlatform().getName() != null
                         ? l.getPlatform().getName()
@@ -173,19 +196,25 @@ public class TrendingDealService {
                 .originalPrice(originalPrice)
                 .discountPercent(discountPct)
                 .isFlashSale(flashSale)
-                .dealScore(calc.totalDealScore())
+                .dealScore(safeCalc.totalDealScore())
                 .badge(badge)
                 .explanation(explanation)
                 .isPinned(pinned)
-                .discountScore(calc.discountScore())
-                .trustScore(calc.trustScore())
-                .freshnessScore(calc.freshnessScore())
+                .discountScore(safeCalc.discountScore())
+                .trustScore(safeCalc.trustScore())
+                .freshnessScore(safeCalc.freshnessScore())
                 .build();
     }
 
     private TrendingDealResponse mapToResponse(TrendingDealDTO dto, Boolean priceConflict) {
+        if (dto == null) {
+            return null;
+        }
         TrendingDealResponse res =
                 mapToResponse(dto.listing(), dto.score(), dto.latestPriceRecord());
+        if (res == null) {
+            return null;
+        }
         boolean conflict = Boolean.TRUE.equals(priceConflict);
         res.setPriceConflict(conflict);
         res.setPriceConflictMessage(conflict ? "Có chênh lệch giá giữa các shop/sàn" : null);

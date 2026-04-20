@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import type { IncomingMessage } from 'node:http';
@@ -16,22 +16,20 @@ import type { IncomingMessage } from 'node:http';
 //   4. Log mỗi request proxy (`[vite-proxy][...]`) để dễ debug 500 / CORS.
 // ==========================================================================
 
-function attachProxyLogger(prefix: string) {
-  // Trả về callback `configure` của http-proxy để in log mỗi lần proxy.
-  return (proxy: {
-    on: (event: string, cb: (...args: unknown[]) => void) => void;
-  }) => {
-    proxy.on('error', (err: unknown) => {
-      console.error(`[vite-proxy][${prefix}] error:`, (err as Error)?.message ?? err);
+// Trả về callback `configure` của http-proxy để in log mỗi lần proxy.
+// Dùng đúng signature `NonNullable<ProxyOptions['configure']>` để TS không
+// complain khi truyền vào `server.proxy[...].configure`.
+function attachProxyLogger(prefix: string): NonNullable<ProxyOptions['configure']> {
+  return (proxy) => {
+    proxy.on('error', (err) => {
+      console.error(`[vite-proxy][${prefix}] error:`, err?.message ?? err);
     });
-    proxy.on('proxyReq', (_proxyReq: unknown, req: unknown) => {
-      const r = req as IncomingMessage;
-      console.log(`[vite-proxy][${prefix}] →`, r.method, r.url);
+    proxy.on('proxyReq', (_proxyReq, req: IncomingMessage) => {
+      console.log(`[vite-proxy][${prefix}] →`, req.method, req.url);
     });
-    proxy.on('proxyRes', (proxyRes: unknown, req: unknown) => {
-      const r = req as IncomingMessage;
-      const status = (proxyRes as { statusCode?: number }).statusCode ?? '-';
-      console.log(`[vite-proxy][${prefix}] ←`, status, r.method, r.url);
+    proxy.on('proxyRes', (proxyRes, req: IncomingMessage) => {
+      const status = proxyRes.statusCode ?? '-';
+      console.log(`[vite-proxy][${prefix}] ←`, status, req.method, req.url);
     });
   };
 }

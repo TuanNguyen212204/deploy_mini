@@ -24,18 +24,20 @@ const formatPrice = (price: number): string =>
 
 export default function ProductSummary({ comparison }: ProductSummaryProps) {
     // 2. Lấy hàm từ WishlistContext
-    const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+    const { addToWishlist, removeFromWishlist, isInWishlist, isRemoving } = useWishlist();
 
     const productId = comparison.productId;
     const isSaved = isInWishlist(productId);
+    const removing = isRemoving(productId);
 
     const sorted = [...comparison.comparisons].sort((a, b) => a.price - b.price);
     const bestOffer = sorted[0];
 
-    // 3. Hàm xử lý Click
+    // 3. Hàm xử lý Click — provider đã lo optimistic update + rollback + alert.
     const handleWishlistClick = async (e: React.MouseEvent) => {
         e.preventDefault();
-        
+        if (removing) return;
+
         if (isSaved) {
             await removeFromWishlist(productId);
         } else {
@@ -149,18 +151,19 @@ export default function ProductSummary({ comparison }: ProductSummaryProps) {
                 <button
                     type="button"
                     onClick={handleWishlistClick}
-                    className={`inline-flex items-center justify-center gap-2 rounded-full border px-5 py-4 text-sm font-medium transition cursor-pointer ${
-                        isSaved 
-                            ? 'border-[#8E6A72] bg-[#8E6A72] text-white hover:opacity-90' 
+                    disabled={removing}
+                    className={`inline-flex items-center justify-center gap-2 rounded-full border px-5 py-4 text-sm font-medium transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                        isSaved
+                            ? 'border-[#8E6A72] bg-[#8E6A72] text-white hover:opacity-90'
                             : 'border-stone-200 bg-white text-stone-700 hover:text-[#8E6A72]'
                     }`}
                 >
-                    <Heart 
-                        size={16} 
-                        fill={isSaved ? "currentColor" : "none"} 
-                        strokeWidth={isSaved ? 0 : 2} 
+                    <Heart
+                        size={16}
+                        fill={isSaved ? "currentColor" : "none"}
+                        strokeWidth={isSaved ? 0 : 2}
                     />
-                    {isSaved ? "Đã lưu wishlist" : "Lưu wishlist"}
+                    {removing ? 'Đang xóa...' : isSaved ? 'Đã lưu wishlist' : 'Lưu wishlist'}
                 </button>
             </div>
         </div>

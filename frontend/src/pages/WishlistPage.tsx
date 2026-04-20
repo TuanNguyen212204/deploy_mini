@@ -19,7 +19,7 @@ const formatPrice = (price: number): string =>
   }).format(price);
 
 export default function WishlistPage() {
-  const { wishlist, removeFromWishlist } = useWishlist();
+  const { wishlist, removeFromWishlist, isRemoving } = useWishlist();
 
   const handleRemove = async (productId: string) => {
     try {
@@ -131,11 +131,12 @@ export default function WishlistPage() {
                           </button>
                         </div>
 
-                        <button 
-                            onClick={() => handleRemove(pId)} 
-                            className="flex cursor-pointer items-center gap-2 text-sm text-[#8D7B6D] hover:text-red-600 transition"
+                        <button
+                            onClick={() => handleRemove(pId)}
+                            disabled={isRemoving(pId)}
+                            className="flex cursor-pointer items-center gap-2 text-sm text-[#8D7B6D] hover:text-red-600 transition disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <Trash2 size={15} /> Xóa
+                          <Trash2 size={15} /> {isRemoving(pId) ? 'Đang xóa...' : 'Xóa'}
                         </button>
                       </div>
                     </div>
