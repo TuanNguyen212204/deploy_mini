@@ -3,12 +3,14 @@ package com.pricehawl.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.time.LocalDateTime;
@@ -68,6 +70,39 @@ public class GlobalExceptionHandler {
         log.error("Data integrity violation", ex);
         String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         return build(HttpStatus.CONFLICT, "Vi phạm ràng buộc dữ liệu: " + cause, null);
+    }
+
+    // 503: tính toán trending deals bị lỗi (NPE, dữ liệu bẩn, scoring fail...).
+    // Tách khỏi fallback Exception để FE phân biệt "hệ thống đang cập nhật"
+    // thay vì lỗi 500 chung chung.
+    @ExceptionHandler(TrendingDealsComputationException.class)
+    public ResponseEntity<Map<String, Object>> handleTrendingComputation(TrendingDealsComputationException ex) {
+        log.error("Trending deals computation failed", ex);
+        return build(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                ex.getMessage() != null
+                        ? ex.getMessage()
+                        : "Hệ thống đang cập nhật dữ liệu trending, vui lòng thử lại sau.",
+                "TRENDING_COMPUTATION_FAILED");
+    }
+
+    // Bảo toàn HTTP status mà controller đã chủ động set qua ResponseStatusException.
+    // Nếu không tách riêng, ResponseStatusException (vd: 503) sẽ rơi xuống
+    // handler Exception.class bên dưới và bị chuyển thành 500.
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatusCode code = ex.getStatusCode();
+        HttpStatus status = HttpStatus.resolve(code.value());
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        if (status.is5xxServerError()) {
+            log.error("ResponseStatusException {}", code.value(), ex);
+        } else {
+            log.warn("ResponseStatusException {}: {}", code.value(), ex.getReason());
+        }
+        String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
+        return build(status, message, null);
     }
 
     // 500: fallback — log full stacktrace để debug

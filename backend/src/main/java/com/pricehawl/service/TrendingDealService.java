@@ -6,9 +6,11 @@ import com.pricehawl.dto.TrendingDealModels.TrendingDealResponse;
 import com.pricehawl.dto.TrendingDealModels.TrendingDealsSnapshot;
 import com.pricehawl.entity.PriceRecord;
 import com.pricehawl.entity.ProductListing;
+import com.pricehawl.exception.TrendingDealsComputationException;
 import com.pricehawl.repository.TrendingDealRepositories.PriceRecordRepository;
 import com.pricehawl.repository.TrendingDealRepositories.TrendingDealRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -27,6 +29,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TrendingDealService {
@@ -63,6 +66,22 @@ public class TrendingDealService {
     }
 
     private TrendingDealsSnapshot buildSnapshot(boolean expand) {
+        // Bọc toàn bộ pipeline tính trending trong 1 try/catch duy nhất để
+        // mọi lỗi không mong muốn (NPE dữ liệu bẩn, lỗi scoring, lỗi map...)
+        // đều được chuyển thành TrendingDealsComputationException (→ 503),
+        // thay vì để Spring bọc thành 500 chung chung.
+        try {
+            return buildSnapshotUnsafe(expand);
+        } catch (TrendingDealsComputationException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.error("Trending snapshot computation failed (expand={})", expand, e);
+            throw new TrendingDealsComputationException(
+                    "Hệ thống đang cập nhật dữ liệu trending, vui lòng thử lại sau.", e);
+        }
+    }
+
+    private TrendingDealsSnapshot buildSnapshotUnsafe(boolean expand) {
         Instant computedAt = Instant.now();
         var candidatePage = trendingDealRepository.findTrendingCandidateIds(
                 PageRequest.of(
@@ -88,13 +107,23 @@ public class TrendingDealService {
         List<TrendingDealDTO> organicCandidates = new ArrayList<>();
 
         for (ProductListing listing : candidates) {
-            List<PriceRecord> recsDesc = priceRecordRepository
-                    .findTop400ByProductListingIdOrderByCrawledAtDesc(listing.getId());
+            // Phòng vệ per-listing: 1 bản ghi bẩn không được phép làm 500
+            // toàn bộ response. Log và bỏ qua listing lỗi.
+            try {
+                if (listing == null || listing.getId() == null) {
+                    continue;
+                }
+                List<PriceRecord> recsDesc = priceRecordRepository
+                        .findTop400ByProductListingIdOrderByCrawledAtDesc(listing.getId());
 
-            if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
-                DealScoreCalculation calc = TrendingDealEngine.score(listing, recsDesc);
-                PriceRecord latest = TrendingDealEngine.latest(recsDesc);
-                organicCandidates.add(new TrendingDealDTO(listing, calc, latest, recsDesc));
+                if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
+                    DealScoreCalculation calc = TrendingDealEngine.score(listing, recsDesc);
+                    PriceRecord latest = TrendingDealEngine.latest(recsDesc);
+                    organicCandidates.add(new TrendingDealDTO(listing, calc, latest, recsDesc));
+                }
+            } catch (RuntimeException ex) {
+                log.warn("Skip trending candidate listingId={} due to error: {}",
+                        listing != null ? listing.getId() : null, ex.toString());
             }
         }
 

@@ -72,46 +72,58 @@ public final class TrendingDealEngine {
             ProductListing listing,
             List<PriceRecord> recsDesc) {
 
-        if (listing == null || !passesCoreListingRules(listing)) {
-            return false;
-        }
+        // Phòng vệ toàn bộ: dữ liệu bẩn (listing/price record thiếu field)
+        // không được phép làm 500 cả request. Lỗi ở 1 listing → loại listing đó.
+        try {
+            if (listing == null || !passesCoreListingRules(listing)) {
+                return false;
+            }
 
-        PriceRecord latest = latest(recsDesc);
-        if (latest == null) {
-            return false;
-        }
+            PriceRecord latest = latest(recsDesc);
+            if (latest == null) {
+                return false;
+            }
 
-        // Eligibility theo yêu cầu:
-        // - PriceRecord: discountPct > 10%, inStock == true, và xử lý isFlashSale null-safe
-        // - ProductListing: trustScore >= 0.50
-        if (!hasInStockLatest(latest)) {
-            return false;
-        }
-        // FreshnessScore là bắt buộc → cần crawledAt hợp lệ để tính freshness tier.
-        if (latest.getCrawledAt() == null) {
-            return false;
-        }
+            // Eligibility theo yêu cầu:
+            // - PriceRecord: discountPct > 10%, inStock == true, isFlashSale null-safe
+            // - ProductListing: trustScore >= 0.50
+            if (!hasInStockLatest(latest)) {
+                return false;
+            }
+            // FreshnessScore bắt buộc → cần crawledAt hợp lệ để tính freshness tier.
+            if (latest.getCrawledAt() == null) {
+                return false;
+            }
 
-        // "kiểm tra cả isFlashSale": đọc null-safe (null -> false) để chắc chắn field hợp lệ.
-        // Không dùng làm điều kiện loại listing; chỉ đảm bảo logic/response không NPE.
-        Boolean.TRUE.equals(latest.getIsFlashSale());
+            // isFlashSale đọc null-safe (null -> false). Không dùng làm tiêu chí loại
+            // listing, nhưng vẫn "chạm" để bảo đảm đọc được field, tránh NPE khi
+            // downstream (scoring / response) đọc lại.
+            boolean flashSale = Boolean.TRUE.equals(latest.getIsFlashSale());
+            if (flashSale && latest.getPrice() == null) {
+                // Flash sale mà thiếu price hiện tại là dữ liệu lỗi → loại.
+                return false;
+            }
 
-        float discountPct = (float) platformDiscountPct(latest);
-        if (!(discountPct > MIN_DISCOUNT_PCT_EXCLUSIVE)) {
+            float discountPct = (float) platformDiscountPct(latest);
+            if (!(discountPct > MIN_DISCOUNT_PCT_EXCLUSIVE)) {
+                return false;
+            }
+
+            // trustScore bắt buộc (null → loại, không throw)
+            Double trustRaw = listing.getTrustScore();
+            if (trustRaw == null) {
+                return false;
+            }
+            double trust = trustRaw;
+            if (Double.isNaN(trust) || Double.isInfinite(trust)) {
+                return false;
+            }
+            return trust >= MIN_TRUST_SCORE_INCLUSIVE;
+        } catch (RuntimeException ignored) {
+            // Defensive: bất kỳ NPE/IllegalState nào từ dữ liệu bẩn → loại listing
+            // thay vì 500 cả response.
             return false;
         }
-
-        // trustScore là bắt buộc (không có → loại)
-        Double trustRaw = listing.getTrustScore();
-        if (trustRaw == null) {
-            return false;
-        }
-        double trust = trustRaw;
-        if (trust < MIN_TRUST_SCORE_INCLUSIVE) {
-            return false;
-        }
-
-        return true;
     }
 
     public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
