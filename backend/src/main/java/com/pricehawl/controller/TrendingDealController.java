@@ -44,8 +44,13 @@ public class TrendingDealController {
                     "Không lấy được trending deals (DB/network timeout).",
                     e);
         }
+        // refresh=true: user đang yêu cầu lấy dữ liệu mới -> không để browser cache response này
+        CacheControl cc = refresh
+                ? CacheControl.noStore()
+                : CacheControl.maxAge(snap.cacheTtlSeconds(), TimeUnit.SECONDS).cachePublic();
+
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(snap.cacheTtlSeconds(), TimeUnit.SECONDS).cachePublic())
+                .cacheControl(cc)
                 .header("X-Trending-Computed-At", snap.computedAt().toString())
                 .header("X-Trending-Next-Refresh-After",
                         snap.computedAt().plusSeconds(snap.cacheTtlSeconds()).toString())

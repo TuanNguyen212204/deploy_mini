@@ -135,7 +135,13 @@ export async function fetchTrendingDeals(
         ...(expand ? { expand: true } : null),
         ...(opts?.refresh ? { refresh: true } : null),
       },
-      headers: { Accept: 'application/json' },
+      // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
+      // để tránh trường hợp FE hiển thị response cũ "from disk cache".
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
     })
 
     const data: unknown = res.data
