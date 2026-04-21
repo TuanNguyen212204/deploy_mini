@@ -25,6 +25,12 @@ export const wishlistService = {
       const response = await apiClient.get(`/wishlist/${String(userId)}`);
       return response.data as unknown;
     } catch (error) {
+      // 404 ở wishlist thường nghĩa là user chưa có wishlist (hoặc DB rỗng),
+      // coi như danh sách trống để tránh console đỏ khi vừa vào trang.
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        console.warn('[wishlistApi] Wishlist chưa tồn tại, trả về []');
+        return [];
+      }
       logAxiosError('Error fetching wishlist', error);
       throw error;
     }
