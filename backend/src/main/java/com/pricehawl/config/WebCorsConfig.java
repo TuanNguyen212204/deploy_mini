@@ -20,7 +20,9 @@ public class WebCorsConfig {
                 "http://127.0.0.1:*",
                 "https://localhost:*",
                 "https://*.vercel.app",
-                "https://deploy-mini.vercel.app"
+                "https://deploy-mini.vercel.app",
+                // Explicit allow: một số trường hợp wildcard có thể không match như mong đợi
+                "https://pricehawk-technology-subject.vercel.app"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
