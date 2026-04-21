@@ -1,6 +1,5 @@
 import axios, { AxiosError } from 'axios';
-
-const API_URL = 'http://localhost:8080/api/wishlist';
+import apiClient from '../api/apiClient';
 
 // Chuẩn hoá log lỗi axios: in cả status + response.data để biết chính xác
 // backend trả gì (message, code, timestamp...) thay vì chỉ "Request failed".
@@ -23,8 +22,8 @@ function logAxiosError(context: string, error: unknown) {
 export const wishlistService = {
   getWishlist: async (userId: string) => {
     try {
-      const response = await axios.get(`${API_URL}/${String(userId)}`);
-      return response.data;
+      const response = await apiClient.get(`/wishlist/${String(userId)}`);
+      return response.data as unknown;
     } catch (error) {
       logAxiosError('Error fetching wishlist', error);
       throw error;
@@ -33,7 +32,7 @@ export const wishlistService = {
 
   add: async (userId: string, productId: string) => {
     try {
-      const response = await axios.post(`${API_URL}/add`, {
+      const response = await apiClient.post(`/wishlist/add`, {
         userId: String(userId),
         productId: String(productId),
       });
@@ -53,7 +52,7 @@ export const wishlistService = {
    */
   remove: async (productId: string, userId: string) => {
     try {
-      const response = await axios.delete(`${API_URL}/${String(productId)}`, {
+      const response = await apiClient.delete(`/wishlist/${String(productId)}`, {
         params: { userId: String(userId) },
       });
       return response.data;

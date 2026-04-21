@@ -1,6 +1,7 @@
 import type { TrendingDealDto, TrendingDealsApiMeta } from '../types/trendingDeal'
 import axios, { AxiosError } from 'axios'
 import type { AxiosResponse } from 'axios'
+import apiClient from './apiClient'
 
 /**
  * Base URL API:
@@ -8,11 +9,8 @@ import type { AxiosResponse } from 'axios'
  * - Hoặc set VITE_API_BASE_URL=http://localhost:8080 (cần CORS trên backend)
  */
 export function getApiBaseUrl(): string {
-  const v = import.meta.env.VITE_API_BASE_URL as string | undefined
-  const normalized = v != null ? String(v).trim().replace(/\/$/, '') : ''
-  // Nếu không dùng proxy Vite (/api → :8080), hãy set VITE_API_BASE_URL=http://localhost:8080.
-  // Fallback dev: cho phép gọi thẳng backend khi chạy ở :5173 và không cấu hình proxy.
-  return normalized || 'http://localhost:8080'
+  // Giữ hàm để tương thích code cũ, nhưng lấy từ apiClient để tránh fallback localhost khi production.
+  return String(apiClient.defaults.baseURL ?? '/api')
 }
 
 /**
@@ -131,10 +129,8 @@ export async function fetchTrendingDeals(
   expand = false,
   opts?: { refresh?: boolean },
 ): Promise<TrendingDealsFetchResult> {
-  const base = getApiBaseUrl()
-  const url = `${base}/api/trending-deals`
   try {
-    const res = await axios.get<unknown>(url, {
+    const res = await apiClient.get<unknown>('/trending-deals', {
       params: {
         ...(expand ? { expand: true } : null),
         ...(opts?.refresh ? { refresh: true } : null),

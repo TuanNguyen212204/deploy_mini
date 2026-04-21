@@ -1,6 +1,5 @@
 import type { ProductSearch, PriceComparison, PriceHistory } from '../types/product';
-
-const BASE_URL = 'http://localhost:8080';
+import apiClient from '../api/apiClient';
 
 export interface SearchProductsOptions {
     /**
@@ -24,31 +23,22 @@ export async function searchProducts(
     query: string,
     opts: SearchProductsOptions = {},
 ): Promise<ProductSearch[]> {
-    const params = new URLSearchParams();
-    params.set('q', query);
-
-    // Multi-select platforms: append nhiều lần cùng key `platform`.
-    // Backend đọc `@RequestParam List<String> platform` → nhận đủ list.
     const platforms = (opts.platforms ?? [])
         .map((p) => p?.trim())
         .filter((p): p is string => !!p && p.length > 0);
-    for (const p of platforms) {
-        params.append('platform', p);
-    }
 
-    const res = await fetch(`${BASE_URL}/products/search?${params.toString()}`);
-    if (!res.ok) throw new Error('API error');
-    return res.json();
+    const res = await apiClient.get<ProductSearch[]>('/products/search', {
+        params: { q: query, ...(platforms.length > 0 ? { platform: platforms } : null) },
+    });
+    return res.data;
 }
 
 export async function priceComparison(productId: string): Promise<PriceComparison> {
-    const res = await fetch(`${BASE_URL}/api/compare/${productId}`);
-    if (!res.ok) throw new Error('API error');
-    return res.json();
+    const res = await apiClient.get<PriceComparison>(`/compare/${productId}`);
+    return res.data;
 }
 
 export async function priceHistory(productId: string): Promise<PriceHistory> {
-    const res = await fetch(`${BASE_URL}/api/v1/price-history/${productId}`);
-    if (!res.ok) throw new Error('API error');
-    return res.json();
+    const res = await apiClient.get<PriceHistory>(`/v1/price-history/${productId}`);
+    return res.data;
 }
