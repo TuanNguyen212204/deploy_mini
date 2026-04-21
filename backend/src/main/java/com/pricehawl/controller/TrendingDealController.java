@@ -44,10 +44,10 @@ public class TrendingDealController {
                     "Không lấy được trending deals (DB/network timeout).",
                     e);
         }
-        // refresh=true: user đang yêu cầu lấy dữ liệu mới -> không để browser cache response này
-        CacheControl cc = refresh
-                ? CacheControl.noStore()
-                : CacheControl.maxAge(snap.cacheTtlSeconds(), TimeUnit.SECONDS).cachePublic();
+        // Không cho trình duyệt cache endpoint này để tránh "from disk cache"
+        // hiển thị dữ liệu cũ (đặc biệt sau khi thay rule lọc demo/trustScore).
+        // Server-side cache vẫn do @Cacheable ở service quản lý.
+        CacheControl cc = CacheControl.noStore();
 
         return ResponseEntity.ok()
                 .cacheControl(cc)

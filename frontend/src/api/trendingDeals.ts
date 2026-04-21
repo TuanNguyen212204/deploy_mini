@@ -134,6 +134,8 @@ export async function fetchTrendingDeals(
       params: {
         ...(expand ? { expand: true } : null),
         ...(opts?.refresh ? { refresh: true } : null),
+        // Cache-buster: tránh browser reuse response "from disk cache"
+        _ts: Date.now(),
       },
       // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
       // để tránh trường hợp FE hiển thị response cũ "from disk cache".
