@@ -6,11 +6,13 @@ import com.pricehawl.entity.Product;
 import com.pricehawl.entity.ProductListing;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +41,30 @@ public final class TrendingDealRepositories {
                 """)
         Page<UUID> findTrendingCandidateIds(Pageable pageable);
 
+        /**
+         * Candidate query có pre-filter mạnh ở DB:
+         * - platform active (null coi như active)
+         * - trustScore đạt ngưỡng yêu cầu
+         * - có PriceRecord gần đây (để tránh listing "chết" làm nặng pipeline)
+         *
+         * Dùng Slice để scan theo batch mà không cần COUNT().
+         */
+        @Query("""
+                SELECT p.id FROM ProductListing p
+                JOIN p.platform plat
+                WHERE (plat.isActive IS NULL OR plat.isActive = TRUE)
+                  AND p.trustScore >= :minTrustScore
+                  AND EXISTS (
+                      SELECT 1 FROM PriceRecord pr
+                      WHERE pr.productListing = p
+                        AND pr.crawledAt >= :priceSince
+                  )
+                """)
+        Slice<UUID> findTrendingCandidateIdsSlice(
+                @Param("minTrustScore") double minTrustScore,
+                @Param("priceSince") LocalDateTime priceSince,
+                Pageable pageable);
+
         @Query("""
                 SELECT DISTINCT p FROM ProductListing p
                 JOIN FETCH p.product
@@ -64,27 +90,24 @@ public final class TrendingDealRepositories {
         List<PriceRecord> findByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
 
         /**
-         * Batch lấy N bản ghi giá mới nhất cho mỗi listing trong danh sách.
+         * Batch lấy N bản ghi giá mới nhất cho mỗi listing trong danh sách, có filter `since`.
          * Dùng window function để tránh N+1 query ở `TrendingDealService`.
          */
         @Query(value = """
-            SELECT pr.*
-            FROM price_record pr
-            JOIN (
-              SELECT id
-              FROM (
-                SELECT pr2.id,
-                       ROW_NUMBER() OVER (PARTITION BY pr2.product_listing_id ORDER BY pr2.crawled_at DESC) AS rn
-                FROM price_record pr2
-                WHERE pr2.product_listing_id IN (:listingIds)
-              ) ranked
-              WHERE ranked.rn <= :perListing
-            ) picked ON picked.id = pr.id
-            ORDER BY pr.product_listing_id, pr.crawled_at DESC
+            SELECT * FROM (
+              SELECT pr.*,
+                     ROW_NUMBER() OVER (PARTITION BY pr.product_listing_id ORDER BY pr.crawled_at DESC) AS rn
+              FROM price_record pr
+              WHERE pr.product_listing_id IN (:listingIds)
+                AND pr.crawled_at >= :since
+            ) t
+            WHERE t.rn <= :capPerListing
+            ORDER BY t.product_listing_id, t.crawled_at DESC
             """, nativeQuery = true)
-        List<PriceRecord> findLatestNByListingIds(
+        List<PriceRecord> findLatestPriceRecordsByListingIdsInCapped(
                 @Param("listingIds") Collection<UUID> listingIds,
-                @Param("perListing") int perListing
+                @Param("since") LocalDateTime since,
+                @Param("capPerListing") int capPerListing
         );
     }
 

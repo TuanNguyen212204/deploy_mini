@@ -32,9 +32,14 @@ public final class TrendingDealEngine {
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final float MIN_DISCOUNT_PCT_EXCLUSIVE = 10f;
-    // Chỉ cho phép listing có trustScore tuyệt đối.
-    // Lưu ý: trustScore trong DB thường nằm trong [0..1].
+
+    /** Trending chỉ nhận listing có trustScore >= 1.0 (thực tế DB thường chuẩn hoá [0..1]). */
     public static final double MIN_TRUST_SCORE_INCLUSIVE = 1.00;
+    /** Candidate scan chỉ xét listing có dữ liệu giá trong khoảng lookback này. */
+    public static final int PRICE_LOOKBACK_DAYS_FOR_CANDIDATE_EXISTS = 60;
+
+    public static final float BADGE_HOT_MIN_DISCOUNT_PCT_INCLUSIVE = 30f;
+    public static final float BADGE_DEAL_MIN_DISCOUNT_PCT_EXCLUSIVE = 20f;
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
     public static final double FAKE_PROMO_HISTORICAL_LOW_DISCOUNT_PCT = 18.0;
@@ -106,7 +111,8 @@ public final class TrendingDealEngine {
                 return false;
             }
 
-            float discountPct = (float) platformDiscountPct(latest);
+            // Filter eligibility theo discountPct gốc DB (không fallback).
+            float discountPct = calculateStoredDiscountPct(latest);
             if (!(discountPct > MIN_DISCOUNT_PCT_EXCLUSIVE)) {
                 return false;
             }
@@ -188,6 +194,30 @@ public final class TrendingDealEngine {
         }
 
         return 0.0;
+    }
+
+    /**
+     * Discount dùng để FILTER eligibility: chỉ dùng discountPct "lưu trong DB" (không fallback),
+     * để tránh trường hợp thiếu originalPrice nhưng vẫn hiển thị % giảm.
+     */
+    public static float calculateStoredDiscountPct(PriceRecord r) {
+        if (r == null) return 0f;
+        Float v = r.getDiscountPct();
+        if (v == null) return 0f;
+        if (v.isNaN() || v.isInfinite()) return 0f;
+        return (float) Math.max(0.0, Math.min(100.0, v));
+    }
+
+    /** Discount dùng để HIỂN THỊ/score: tính lại từ originalPrice/price nếu có; fallback sang discountPct. */
+    public static float calculateDisplayDiscountPct(PriceRecord r) {
+        return (float) platformDiscountPct(r);
+    }
+
+    public static String computeBadge(boolean pinned, float discountPct) {
+        if (pinned) return "PINNED";
+        if (discountPct >= BADGE_HOT_MIN_DISCOUNT_PCT_INCLUSIVE) return "HOT";
+        if (discountPct > BADGE_DEAL_MIN_DISCOUNT_PCT_EXCLUSIVE) return "DEAL";
+        return "TRENDING";
     }
 
     private static boolean suddenDeepDiscountAfterQuietHistory(
