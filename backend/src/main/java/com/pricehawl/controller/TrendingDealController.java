@@ -46,7 +46,7 @@ public class TrendingDealController {
         }
         // Không cho trình duyệt cache endpoint này để tránh "from disk cache"
         // hiển thị dữ liệu cũ (đặc biệt sau khi thay rule lọc demo/trustScore).
-        // Server-side cache vẫn do @Cacheable ở service quản lý.
+        // Server-side cache/warm-up do service quản lý (in-memory snapshot + async refresh).
         CacheControl cc = CacheControl.noStore();
 
         return ResponseEntity.ok()

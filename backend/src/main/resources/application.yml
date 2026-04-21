@@ -12,13 +12,23 @@ spring:
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      maximum-pool-size: 3
-      minimum-idle: 1
-      idle-timeout: 10000
-      max-lifetime: 30000
-      # Fail-fast: tránh treo request quá lâu khi DB chậm/mất kết nối (Render cold start / network)
-      connection-timeout: 10000
+      # Pool size 3 quá nhỏ → dễ cạn pool khi có vài request đồng thời.
+      # Tăng lên mức an toàn hơn cho môi trường deploy mini.
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+      # Timeout acquire connection (ms)
+      # 10s thường quá gắt với cold start/network → tăng lên để giảm 500 do timeout acquire.
+      connection-timeout: 30000
       validation-timeout: 5000
+
+      # Tránh churn connection: maxLifetime quá thấp (30s) sẽ khiến pool liên tục hủy/tạo lại.
+      # Khuyến nghị ~30 phút, thấp hơn idle timeout của DB/proxy nếu có.
+      max-lifetime: 1800000
+      idle-timeout: 600000
+
+      # Bật leak detection để phát hiện request giữ connection quá lâu (ms).
+      leak-detection-threshold: 20000
 
   jpa:
     hibernate:
@@ -36,13 +46,19 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  cache:
+    type: caffeine
+    caffeine:
+      # Default spec cho cache của app; TTL snapshot trending = 2h.
+      spec: maximumSize=200,expireAfterWrite=7200s
+
 server:
   # Render sẽ inject biến môi trường PORT; local thì fallback 8080
   port: ${PORT:8080}
 
 logging:
   level:
-    root: DEBUG
+    root: INFO
   file:
     name: logs/app.log
   pattern:

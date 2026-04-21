@@ -11,10 +11,6 @@ import com.pricehawl.repository.TrendingDealRepositories.PriceRecordRepository;
 import com.pricehawl.repository.TrendingDealRepositories.TrendingDealRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
@@ -22,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -48,28 +46,80 @@ public class TrendingDealService {
     private final PriceRecordRepository priceRecordRepository;
 
     /**
-     * Mặc định dùng cache (TTL do CacheManager cấu hình).
-     * Nếu refresh=true thì xóa cache (theo key) và tính lại ngay từ DB.
+     * Cache in-memory theo snapshot TTL để:
+     * - Trả về "stale snapshot" ngay lập tức khi cần (không treo request).
+     * - Khi snapshot hết hạn, trigger compute async và vẫn trả snapshot cũ.
+     * - Khi lần đầu chưa có snapshot, trả 503 nhanh + trigger warm-up async
+     *   (FE có retry) để tránh frontend timeout 15–20s.
      */
     public TrendingDealsSnapshot getTrendingDealsSnapshot(boolean expand, boolean refresh) {
-        return refresh ? refreshTrendingDealsSnapshot(expand) : getTrendingDealsSnapshotCached(expand);
+        return refresh ? computeNowAndStore(expand) : getOrWarmNonBlocking(expand);
     }
 
-    @Cacheable(cacheNames = "trendingDeals", key = "#expand")
-    public TrendingDealsSnapshot getTrendingDealsSnapshotCached(boolean expand) {
-        return buildSnapshot(expand);
+    private static final class Holder {
+        volatile TrendingDealsSnapshot snapshot;
+        volatile Instant expiresAt;
+        volatile CompletableFuture<Void> inFlight;
     }
 
-    /**
-     * Evict cache trước, sau đó tính lại từ DB và put lại vào cache.
-     * Lưu ý: phải là method public được gọi từ bên ngoài bean (controller) để Spring AOP áp dụng caching.
-     */
-    @Caching(
-            evict = @CacheEvict(cacheNames = "trendingDeals", key = "#expand"),
-            put = @CachePut(cacheNames = "trendingDeals", key = "#expand")
-    )
-    public TrendingDealsSnapshot refreshTrendingDealsSnapshot(boolean expand) {
-        return buildSnapshot(expand);
+    private final ConcurrentHashMap<Boolean, Holder> byExpand = new ConcurrentHashMap<>();
+
+    private Holder holder(boolean expand) {
+        return byExpand.computeIfAbsent(expand, _k -> new Holder());
+    }
+
+    private TrendingDealsSnapshot getOrWarmNonBlocking(boolean expand) {
+        Holder h = holder(expand);
+        TrendingDealsSnapshot snap = h.snapshot;
+        Instant now = Instant.now();
+
+        // Có snapshot còn hạn → trả ngay.
+        if (snap != null && h.expiresAt != null && now.isBefore(h.expiresAt)) {
+            return snap;
+        }
+
+        // Snapshot hết hạn hoặc chưa có → trigger async compute 1 lần.
+        triggerWarmIfNeeded(expand, h);
+
+        // Có snapshot cũ → trả snapshot cũ (stale) để không timeout FE.
+        if (snap != null) {
+            return snap;
+        }
+
+        // Lần đầu chưa có gì → trả 503 nhanh để FE retry.
+        throw new TrendingDealsComputationException(
+                "Trending deals đang khởi tạo trên server (warm-up). Vui lòng thử lại sau vài giây.");
+    }
+
+    private void triggerWarmIfNeeded(boolean expand, Holder h) {
+        CompletableFuture<Void> existing = h.inFlight;
+        if (existing != null && !existing.isDone()) {
+            return;
+        }
+        synchronized (h) {
+            CompletableFuture<Void> inflight = h.inFlight;
+            if (inflight != null && !inflight.isDone()) {
+                return;
+            }
+            h.inFlight = CompletableFuture.runAsync(() -> {
+                try {
+                    TrendingDealsSnapshot fresh = buildSnapshot(expand);
+                    h.snapshot = fresh;
+                    h.expiresAt = fresh.computedAt().plusSeconds(fresh.cacheTtlSeconds());
+                } catch (RuntimeException ex) {
+                    // Không phá request khác: log và giữ snapshot cũ (nếu có).
+                    log.error("Async trending warm-up failed (expand={})", expand, ex);
+                }
+            });
+        }
+    }
+
+    private TrendingDealsSnapshot computeNowAndStore(boolean expand) {
+        Holder h = holder(expand);
+        TrendingDealsSnapshot fresh = buildSnapshot(expand);
+        h.snapshot = fresh;
+        h.expiresAt = fresh.computedAt().plusSeconds(fresh.cacheTtlSeconds());
+        return fresh;
     }
 
     private TrendingDealsSnapshot buildSnapshot(boolean expand) {
