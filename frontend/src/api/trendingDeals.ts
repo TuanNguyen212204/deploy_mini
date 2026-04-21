@@ -190,8 +190,17 @@ export async function fetchTrendingDeals(
             meta: meta2,
             serverStartTime: serverStartTime2,
           }
-        } catch {
-          // fallthrough -> throw timeout message
+        } catch (e2: unknown) {
+          // Nếu retry trả về HTTP status (vd 503) -> ưu tiên throw message đó thay vì timeout
+          if (axios.isAxiosError(e2)) {
+            const s2 = e2.response?.status
+            const t2 = e2.response?.statusText
+            if (s2 != null) {
+              throw new Error(`API ${s2}: ${t2 || 'Request failed'}`)
+            }
+            throw new Error(e2.message || 'Network Error')
+          }
+          // fallthrough -> throw timeout message phía dưới
         }
       }
       throw new Error(ae.message || 'Network Error')
