@@ -36,6 +36,14 @@ export const wishlistService = {
         console.warn('[wishlistApi] Timeout khi lấy wishlist, trả về []');
         return [];
       }
+      // 5xx (backend cold start / DB glitch): cũng không chặn UI
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status != null && status >= 500 && status <= 599) {
+          console.warn(`[wishlistApi] Backend ${status} khi lấy wishlist, trả về []`);
+          return [];
+        }
+      }
       logAxiosError('Error fetching wishlist', error);
       throw error;
     }
