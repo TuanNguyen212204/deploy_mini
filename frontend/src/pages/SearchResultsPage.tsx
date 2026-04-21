@@ -46,6 +46,13 @@ export default function SearchResultsPage() {
     const [products, setProducts] = useState<ProductSearch[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Debounce query để tránh spam request khi user gõ liên tục
+    const [debouncedQuery, setDebouncedQuery] = useState(query);
+    useEffect(() => {
+        const t = window.setTimeout(() => setDebouncedQuery(query), 350);
+        return () => window.clearTimeout(t);
+    }, [query]);
+
     // Chuẩn hoá mảng platform: sort + dedup để key ổn định giữa các render.
     const selectedPlatformsArr = useMemo(
         () => Array.from(selectedPlatforms).sort(),
@@ -56,13 +63,13 @@ export default function SearchResultsPage() {
     // Re-fetch mỗi khi query hoặc selection platform đổi.
     // Ưu tiên làm cho filter hoạt động ngay (không cần bấm "Tìm kiếm" lại).
     useEffect(() => {
-        if (!query) {
+        if (!debouncedQuery) {
             setProducts([]);
             return;
         }
         let cancelled = false;
         setLoading(true);
-        searchProducts(query, { platforms: selectedPlatformsArr })
+        searchProducts(debouncedQuery, { platforms: selectedPlatformsArr })
             .then((data) => {
                 if (cancelled) return;
                 setProducts(data);
@@ -79,16 +86,18 @@ export default function SearchResultsPage() {
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, platformsKey]);
+    }, [debouncedQuery, platformsKey]);
 
     // Đồng bộ filter lên URL để giữ deep-link khi user share/reload.
     useEffect(() => {
         const next = new URLSearchParams();
-        if (query) next.set('q', query);
+        if (debouncedQuery) next.set('q', debouncedQuery);
         for (const p of selectedPlatformsArr) next.append('platform', p);
-        setSearchParams(next, { replace: true });
+        const current = searchParams.toString();
+        const upcoming = next.toString();
+        if (current !== upcoming) setSearchParams(next, { replace: true });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, platformsKey]);
+    }, [debouncedQuery, platformsKey]);
 
     const onSubmitSearch = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();

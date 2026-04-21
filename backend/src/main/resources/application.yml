@@ -1,4 +1,9 @@
 spring:
+  # Local dev convenience:
+  # - Cho phép đặt biến trong file `.env` dạng KEY=VALUE ngay tại thư mục `backend/`
+  # - Render/Prod: không cần file này (optional), vẫn ưu tiên env vars của platform
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     # Render/Prod: set via env vars (không hard-code secrets trong repo)
     url: ${SPRING_DATASOURCE_URL}

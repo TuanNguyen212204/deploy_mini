@@ -53,7 +53,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           )
         : 0;
 
-  const imageSrc = product.images?.[0] || '/fallback-product.jpg';
+  const FALLBACK_IMG = '/fallback-product.svg';
+  const imageSrc = product.images?.[0] || FALLBACK_IMG;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault(); 
@@ -96,7 +97,9 @@ export default function ProductCard({ product }: ProductCardProps) {
               alt={product.name}
               className="aspect-[4/5] w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
               onError={(e) => {
-                e.currentTarget.src = '/fallback-product.jpg';
+                // Tránh loop nếu fallback cũng lỗi hoặc src đã là fallback
+                if (e.currentTarget.src.endsWith(FALLBACK_IMG)) return;
+                e.currentTarget.src = FALLBACK_IMG;
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/0 to-white/10" />

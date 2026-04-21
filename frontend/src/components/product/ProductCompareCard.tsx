@@ -27,6 +27,7 @@ const formatPrice = (price: number): string =>
 
 export default function ProductCompareCard({ product }: ProductCompareCardProps) {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const FALLBACK_IMG = '/fallback-product.svg';
 
   // Early return để không bao giờ crash giao diện khi backend 500 / data thiếu.
   if (!product || !product.id) {
@@ -60,7 +61,7 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
   const spread =
     worstOffer && bestOffer ? (worstOffer.finalPrice ?? 0) - (bestOffer.finalPrice ?? 0) : 0;
   const coverSrc =
-    product?.images?.[0] ?? product?.imageUrl ?? '/fallback-product.jpg';
+    product?.images?.[0] ?? product?.imageUrl ?? FALLBACK_IMG;
 
   return (
     <article
@@ -89,7 +90,8 @@ export default function ProductCompareCard({ product }: ProductCompareCardProps)
               alt={product.name}
               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
               onError={(e) => {
-                e.currentTarget.src = '/fallback-product.jpg';
+                if (e.currentTarget.src.endsWith(FALLBACK_IMG)) return;
+                e.currentTarget.src = FALLBACK_IMG;
               }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/10" />
