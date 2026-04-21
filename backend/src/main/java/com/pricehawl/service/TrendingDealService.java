@@ -35,7 +35,9 @@ import java.util.stream.Collectors;
 public class TrendingDealService {
 
     /** Giới hạn số listing xét trending mỗi lần tính (đủ lớn cho UX, tránh quét full DB). */
-    private static final int TRENDING_MAX_CANDIDATE_LISTINGS = 30;
+    private static final int TRENDING_MAX_CANDIDATE_LISTINGS = 250;
+    /** Số bản ghi giá gần nhất mỗi listing dùng để score trending. */
+    private static final int TRENDING_PRICE_RECORDS_PER_LISTING = 80;
 
     private final TrendingDealRepository trendingDealRepository;
     private final PriceRecordRepository priceRecordRepository;
@@ -97,6 +99,16 @@ public class TrendingDealService {
         }
         List<ProductListing> candidates =
                 trendingDealRepository.findAllWithProductAndPlatformByIdIn(candidateIds);
+        // Batch fetch price records: tránh N+1 query (mỗi listing 1 query).
+        // Trả về pr đã sắp theo (listing_id, crawled_at desc).
+        List<PriceRecord> allRecentRecords =
+                priceRecordRepository.findLatestNByListingIds(candidateIds, TRENDING_PRICE_RECORDS_PER_LISTING);
+        Map<UUID, List<PriceRecord>> recsByListingId = new HashMap<>();
+        for (PriceRecord pr : allRecentRecords) {
+            if (pr == null || pr.getProductListing() == null || pr.getProductListing().getId() == null) continue;
+            UUID lid = pr.getProductListing().getId();
+            recsByListingId.computeIfAbsent(lid, _k -> new ArrayList<>()).add(pr);
+        }
         Map<UUID, Integer> candidateOrder = new HashMap<>(candidateIds.size());
         for (int i = 0; i < candidateIds.size(); i++) {
             candidateOrder.put(candidateIds.get(i), i);
@@ -113,8 +125,7 @@ public class TrendingDealService {
                 if (listing == null || listing.getId() == null) {
                     continue;
                 }
-                List<PriceRecord> recsDesc = priceRecordRepository
-                        .findTop20ByProductListingIdOrderByCrawledAtDesc(listing.getId());
+                List<PriceRecord> recsDesc = recsByListingId.getOrDefault(listing.getId(), List.of());
 
                 if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
                     DealScoreCalculation calc = TrendingDealEngine.score(listing, recsDesc);

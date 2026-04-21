@@ -64,10 +64,28 @@ public final class TrendingDealRepositories {
         List<PriceRecord> findByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
 
         /**
-         * Đủ cho TrendingDealEngine (fake promo cần vài chục bản ghi gần nhất); tránh đọc
-         * full lịch sử nếu crawler tích lũy nhiều năm.
+         * Batch lấy N bản ghi giá mới nhất cho mỗi listing trong danh sách.
+         * Dùng window function để tránh N+1 query ở `TrendingDealService`.
          */
-        List<PriceRecord> findTop20ByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
+        @Query(value = """
+            SELECT pr.*
+            FROM price_record pr
+            JOIN (
+              SELECT id
+              FROM (
+                SELECT pr2.id,
+                       ROW_NUMBER() OVER (PARTITION BY pr2.product_listing_id ORDER BY pr2.crawled_at DESC) AS rn
+                FROM price_record pr2
+                WHERE pr2.product_listing_id IN (:listingIds)
+              ) ranked
+              WHERE ranked.rn <= :perListing
+            ) picked ON picked.id = pr.id
+            ORDER BY pr.product_listing_id, pr.crawled_at DESC
+            """, nativeQuery = true)
+        List<PriceRecord> findLatestNByListingIds(
+                @Param("listingIds") Collection<UUID> listingIds,
+                @Param("perListing") int perListing
+        );
     }
 
     public interface PriceAlertRepository extends JpaRepository<PriceAlert, UUID> {
