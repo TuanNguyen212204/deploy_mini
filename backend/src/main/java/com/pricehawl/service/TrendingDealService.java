@@ -125,10 +125,9 @@ public class TrendingDealService {
                 if (listing == null || listing.getId() == null) {
                     continue;
                 }
-                // Lọc sớm để giảm khối lượng xử lý: chỉ nhận trustScore >= 0.5
-                // (rule này cũng đã có trong TrendingDealEngine, nhưng lọc sớm giúp tiết kiệm CPU).
+                // Enforce trustScore >= 1.0 theo yêu cầu (lọc sớm để tiết kiệm CPU).
                 Double trust = listing.getTrustScore();
-                if (trust == null || trust < TrendingDealEngine.MIN_TRUST_SCORE_INCLUSIVE) {
+                if (trust == null || trust < 1.0) {
                     continue;
                 }
                 List<PriceRecord> recsDesc = recsByListingId.getOrDefault(listing.getId(), List.of());
@@ -187,7 +186,19 @@ public class TrendingDealService {
                             return null;
                         }
                         UUID pid = d.listing().getProduct().getId();
-                        return mapToResponse(d, pid != null ? priceConflictByProduct.get(pid) : Boolean.FALSE);
+                        TrendingDealResponse res =
+                                mapToResponse(d, pid != null ? priceConflictByProduct.get(pid) : Boolean.FALSE);
+                        if (res == null) return null;
+
+                        // Loại dữ liệu demo/seed khỏi API trending (không bao giờ hiển thị trên FE).
+                        String name = res.getProductName();
+                        if (name != null) {
+                            String s = name.toUpperCase();
+                            if (s.contains("[DEMO") || s.contains("DEMO-") || s.contains("DEMO_")) {
+                                return null;
+                            }
+                        }
+                        return res;
                     } catch (Exception ex) {
                         return null;
                     }
