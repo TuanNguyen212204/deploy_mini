@@ -67,7 +67,7 @@ public final class TrendingDealRepositories {
          * Đủ cho TrendingDealEngine (fake promo cần vài chục bản ghi gần nhất); tránh đọc
          * full lịch sử nếu crawler tích lũy nhiều năm.
          */
-        List<PriceRecord> findTop400ByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
+        List<PriceRecord> findTop80ByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
     }
 
     public interface PriceAlertRepository extends JpaRepository<PriceAlert, UUID> {

@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 public class TrendingDealService {
 
     /** Giới hạn số listing xét trending mỗi lần tính (đủ lớn cho UX, tránh quét full DB). */
-    private static final int TRENDING_MAX_CANDIDATE_LISTINGS = 600;
+    private static final int TRENDING_MAX_CANDIDATE_LISTINGS = 120;
 
     private final TrendingDealRepository trendingDealRepository;
     private final PriceRecordRepository priceRecordRepository;
@@ -114,7 +114,7 @@ public class TrendingDealService {
                     continue;
                 }
                 List<PriceRecord> recsDesc = priceRecordRepository
-                        .findTop400ByProductListingIdOrderByCrawledAtDesc(listing.getId());
+                        .findTop80ByProductListingIdOrderByCrawledAtDesc(listing.getId());
 
                 if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
                     DealScoreCalculation calc = TrendingDealEngine.score(listing, recsDesc);
