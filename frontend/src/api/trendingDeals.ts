@@ -129,22 +129,26 @@ export async function fetchTrendingDeals(
   expand = false,
   opts?: { refresh?: boolean },
 ): Promise<TrendingDealsFetchResult> {
+  const requestConfig = {
+    params: {
+      ...(expand ? { expand: true } : null),
+      ...(opts?.refresh ? { refresh: true } : null),
+      // Cache-buster: tránh browser reuse response "from disk cache"
+      _ts: Date.now(),
+    },
+    // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
+    // để tránh trường hợp FE hiển thị response cũ "from disk cache".
+    headers: {
+      Accept: 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+    // Render cold start / DB chậm có thể vượt 15s mặc định của apiClient
+    timeout: 40_000,
+  } as const
+
   try {
-    const res = await apiClient.get<unknown>('/trending-deals', {
-      params: {
-        ...(expand ? { expand: true } : null),
-        ...(opts?.refresh ? { refresh: true } : null),
-        // Cache-buster: tránh browser reuse response "from disk cache"
-        _ts: Date.now(),
-      },
-      // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
-      // để tránh trường hợp FE hiển thị response cũ "from disk cache".
-      headers: {
-        Accept: 'application/json',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
-    })
+    const res = await apiClient.get<unknown>('/trending-deals', requestConfig)
 
     const data: unknown = res.data
     if (!Array.isArray(data)) {
@@ -169,6 +173,27 @@ export async function fetchTrendingDeals(
         throw new Error(`API ${status}: ${statusText || 'Request failed'}`)
       }
       // Không có response => lỗi network / CORS / server down
+      // Timeout: retry 1 lần (vẫn giữ UX không bị fail ngay khi cold start)
+      const msg = String(ae.message || '').toLowerCase()
+      const isTimeout = msg.includes('timeout')
+      if (isTimeout) {
+        try {
+          const retry = await apiClient.get<unknown>('/trending-deals', requestConfig)
+          const data2: unknown = retry.data
+          if (!Array.isArray(data2)) {
+            throw new Error('API trả về không phải mảng')
+          }
+          const meta2 = readTrendingMetaFromAxios(retry)
+          const serverStartTime2 = meta2?.computedAt ?? null
+          return {
+            deals: data2.map((row) => normalizeDeal(row as Record<string, unknown>)),
+            meta: meta2,
+            serverStartTime: serverStartTime2,
+          }
+        } catch {
+          // fallthrough -> throw timeout message
+        }
+      }
       throw new Error(ae.message || 'Network Error')
     }
     throw e
