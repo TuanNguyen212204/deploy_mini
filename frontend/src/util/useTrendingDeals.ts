@@ -65,7 +65,8 @@ function isServerErrorMessage(msg: string): boolean {
   return Number.isFinite(status) && status >= 500 && status <= 599
 }
 
-const SYSTEM_UPDATING_MESSAGE = 'Hệ thống đang cập nhật, vui lòng thử lại sau.'
+const SYSTEM_UPDATING_MESSAGE = 'Backend đang khởi động (Render free tier). Vui lòng đợi 30-60 giây rồi tải lại trang.'
+const BACKEND_DOWN_MESSAGE = 'Backend không phản hồi. Vui lòng đợi 1-2 phút để server khởi động rồi tải lại trang.'
 
 export function useTrendingDeals() {
   const useApi = resolveUseTrendingApi()
@@ -201,7 +202,7 @@ export function useTrendingDeals() {
             clearCacheNow()
             setDeals([])
             setMeta(null)
-            setError('Backend không chạy. Không tìm thấy sản phẩm')
+            setError(BACKEND_DOWN_MESSAGE)
             return
           }
           if (isServerErrorMessage(msg)) {

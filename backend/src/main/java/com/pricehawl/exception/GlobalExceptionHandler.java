@@ -1,6 +1,7 @@
 package com.pricehawl.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -77,6 +78,19 @@ public class GlobalExceptionHandler {
         log.error("Data integrity violation", ex);
         String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
         return build(HttpStatus.CONFLICT, "Vi phạm ràng buộc dữ liệu: " + cause, null);
+    }
+
+    // 503: lỗi truy cập DB (timeout, connection refused, pooler reset, query fail...).
+    // Trên môi trường Render/Supabase, các lỗi này thường là "tạm thời" và FE nên retry.
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleDataAccess(DataAccessException ex) {
+        log.error("Database access error", ex);
+        String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        return build(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "Dịch vụ dữ liệu đang bận hoặc lỗi kết nối DB, vui lòng thử lại sau."
+                        + (cause != null ? " (" + cause + ")" : ""),
+                "DB_UNAVAILABLE");
     }
 
     // 503: tính toán trending deals bị lỗi (NPE, dữ liệu bẩn, scoring fail...).

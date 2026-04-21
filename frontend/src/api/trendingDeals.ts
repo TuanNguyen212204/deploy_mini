@@ -125,86 +125,114 @@ export type TrendingDealsFetchResult = {
   serverStartTime: string | null
 }
 
+/**
+ * Delay helper cho retry backoff.
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Parse response thành TrendingDealsFetchResult.
+ */
+function parseResponse(res: import('axios').AxiosResponse<unknown>): TrendingDealsFetchResult {
+  const data: unknown = res.data
+  if (!Array.isArray(data)) {
+    throw new Error('API trả về không phải mảng')
+  }
+  const meta = readTrendingMetaFromAxios(res)
+  const serverStartTime = meta?.computedAt ?? null
+  return {
+    deals: data.map((row) => normalizeDeal(row as Record<string, unknown>)),
+    meta,
+    serverStartTime,
+  }
+}
+
 export async function fetchTrendingDeals(
   expand = false,
   opts?: { refresh?: boolean },
 ): Promise<TrendingDealsFetchResult> {
-  const requestConfig = {
-    params: {
-      ...(expand ? { expand: true } : null),
-      ...(opts?.refresh ? { refresh: true } : null),
-      // Cache-buster: tránh browser reuse response "from disk cache"
-      _ts: Date.now(),
-    },
-    // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
-    // để tránh trường hợp FE hiển thị response cũ "from disk cache".
-    headers: {
-      Accept: 'application/json',
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-    },
-    // Render cold start / DB chậm có thể vượt 15s mặc định của apiClient
-    timeout: 40_000,
-  } as const
+  const makeConfig = (timeoutMs: number) =>
+    ({
+      params: {
+        ...(expand ? { expand: true } : null),
+        ...(opts?.refresh ? { refresh: true } : null),
+        // Cache-buster: tránh browser reuse response "from disk cache"
+        _ts: Date.now(),
+      },
+      // Chặn cache trình duyệt (đặc biệt khi backend trả Cache-Control: max-age=...)
+      // để tránh trường hợp FE hiển thị response cũ "from disk cache".
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+      timeout: timeoutMs,
+    }) as const
 
-  try {
-    const res = await apiClient.get<unknown>('/trending-deals', requestConfig)
+  // Chiến lược retry: tối đa 3 lần (1 lần chính + 2 retry)
+  // Timeout giảm dần để user không chờ quá lâu:
+  //   Lần 1: 20s, Lần 2 (retry sau 2s): 15s, Lần 3 (retry sau 4s): 15s
+  const attempts = [
+    { timeoutMs: 20_000, delayBeforeMs: 0 },
+    { timeoutMs: 15_000, delayBeforeMs: 2_000 },
+    { timeoutMs: 15_000, delayBeforeMs: 4_000 },
+  ]
 
-    const data: unknown = res.data
-    if (!Array.isArray(data)) {
-      throw new Error('API trả về không phải mảng')
+  let lastError: unknown = null
+
+  for (let i = 0; i < attempts.length; i++) {
+    const { timeoutMs, delayBeforeMs } = attempts[i]
+
+    if (delayBeforeMs > 0) {
+      console.log(`[trendingDeals] Retry #${i} sau ${delayBeforeMs}ms…`)
+      await delay(delayBeforeMs)
     }
 
-    const meta = readTrendingMetaFromAxios(res)
-    const serverStartTime = meta?.computedAt ?? null
+    try {
+      const res = await apiClient.get<unknown>('/trending-deals', makeConfig(timeoutMs))
+      return parseResponse(res)
+    } catch (e: unknown) {
+      lastError = e
 
-    return {
-      deals: data.map((row) => normalizeDeal(row as Record<string, unknown>)),
-      meta,
-      serverStartTime,
-    }
-  } catch (e: unknown) {
-    // Chuẩn hoá lỗi để hook dễ nhận biết "Network Error"
-    if (axios.isAxiosError(e)) {
+      if (!axios.isAxiosError(e)) {
+        // Lỗi không phải network/HTTP → không retry
+        throw e
+      }
+
       const ae = e as AxiosError
       const status = ae.response?.status
-      const statusText = ae.response?.statusText
-      if (status != null) {
-        throw new Error(`API ${status}: ${statusText || 'Request failed'}`)
-      }
-      // Không có response => lỗi network / CORS / server down
-      // Timeout: retry 1 lần (vẫn giữ UX không bị fail ngay khi cold start)
       const msg = String(ae.message || '').toLowerCase()
       const isTimeout = msg.includes('timeout')
-      if (isTimeout) {
-        try {
-          const retry = await apiClient.get<unknown>('/trending-deals', requestConfig)
-          const data2: unknown = retry.data
-          if (!Array.isArray(data2)) {
-            throw new Error('API trả về không phải mảng')
-          }
-          const meta2 = readTrendingMetaFromAxios(retry)
-          const serverStartTime2 = meta2?.computedAt ?? null
-          return {
-            deals: data2.map((row) => normalizeDeal(row as Record<string, unknown>)),
-            meta: meta2,
-            serverStartTime: serverStartTime2,
-          }
-        } catch (e2: unknown) {
-          // Nếu retry trả về HTTP status (vd 503) -> ưu tiên throw message đó thay vì timeout
-          if (axios.isAxiosError(e2)) {
-            const s2 = e2.response?.status
-            const t2 = e2.response?.statusText
-            if (s2 != null) {
-              throw new Error(`API ${s2}: ${t2 || 'Request failed'}`)
-            }
-            throw new Error(e2.message || 'Network Error')
-          }
-          // fallthrough -> throw timeout message phía dưới
+      const isRetryable =
+        status === 503 || status === 502 || status === 504 || isTimeout || !ae.response
+
+      // Nếu lỗi không retryable (vd: 400, 404, 500) → throw ngay
+      if (!isRetryable) {
+        if (status != null) {
+          throw new Error(`API ${status}: ${ae.response?.statusText || 'Request failed'}`)
         }
+        throw new Error(ae.message || 'Network Error')
       }
-      throw new Error(ae.message || 'Network Error')
+
+      // Log để debug
+      console.warn(
+        `[trendingDeals] Attempt ${i + 1}/${attempts.length} failed:`,
+        status ? `HTTP ${status}` : (isTimeout ? 'Timeout' : 'Network Error'),
+      )
+
+      // Nếu đây là lần cuối → throw
+      if (i === attempts.length - 1) {
+        if (status != null) {
+          throw new Error(`API ${status}: ${ae.response?.statusText || 'Request failed'}`)
+        }
+        throw new Error(ae.message || 'Network Error')
+      }
+      // Còn lần retry → tiếp tục loop
     }
-    throw e
   }
+
+  // Fallback (không bao giờ tới đây nếu logic đúng)
+  throw lastError ?? new Error('Không thể tải dữ liệu trending từ backend.')
 }

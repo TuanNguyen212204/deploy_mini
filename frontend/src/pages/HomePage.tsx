@@ -161,6 +161,15 @@ export default function HomePage() {
                     {error ? 'Không thể tải dữ liệu từ backend. Vui lòng thử lại sau.' : 'Chưa có sản phẩm để hiển thị.'}
                   </p>
                   {error && <p className="mt-2 text-xs text-stone-400">{error}</p>}
+                  {error && (
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="mt-5 rounded-full bg-[#1F1A17] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Tải lại trang
+                    </button>
+                  )}
                 </div>
               )}
 
