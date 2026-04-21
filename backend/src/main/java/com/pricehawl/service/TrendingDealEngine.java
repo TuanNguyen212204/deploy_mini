@@ -32,7 +32,9 @@ public final class TrendingDealEngine {
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final float MIN_DISCOUNT_PCT_EXCLUSIVE = 10f;
-    public static final double MIN_TRUST_SCORE_INCLUSIVE = 0.50;
+    // Chỉ cho phép listing có trustScore tuyệt đối.
+    // Lưu ý: trustScore trong DB thường nằm trong [0..1].
+    public static final double MIN_TRUST_SCORE_INCLUSIVE = 1.00;
 
     public static final double FAKE_PROMO_DEEP_DISCOUNT_PCT = 72.0;
     public static final double FAKE_PROMO_HISTORICAL_LOW_DISCOUNT_PCT = 18.0;
