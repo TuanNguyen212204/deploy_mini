@@ -2,8 +2,6 @@ import  { useMemo, useState } from 'react';
 import { PauseCircle, Pencil, Trash2 } from 'lucide-react';
 import Badge from '../components/common/Badge';
 import PlatformPill from '../components/common/PlatformPill';
-import { mockAlerts } from '../data/mockAlerts';
-import { mockProducts } from '../data/mockProducts';
 import type { Alert } from '../types/alert';
 import AppHeader from '../components/layout/AppHeader';
 
@@ -41,29 +39,11 @@ const getStatusMeta = (status: Alert['status']) => {
 };
 
 export default function AlertsPage() {
-  const [alerts] = useState(mockAlerts);
+  const [alerts] = useState<Alert[]>([]);
 
   const alertRows = useMemo(() => {
-    return alerts
-      .map((alert) => {
-        const product = mockProducts.find((item) => item.id === alert.productId);
-        const bestOffer = product
-          ? [...product.platforms].sort((a, b) => a.finalPrice - b.finalPrice)[0]
-          : null;
-
-        const diff =
-          bestOffer && alert.targetPrice
-            ? bestOffer.finalPrice - alert.targetPrice
-            : 0;
-
-        return {
-          alert,
-          product,
-          bestOffer,
-          diff,
-        };
-      })
-      .filter((row) => row.product && row.bestOffer);
+    // Backend hiện chưa có API alerts → không hiển thị dữ liệu giả.
+    return [];
   }, [alerts]);
 
   const summaryText = useMemo(() => {
@@ -108,6 +88,19 @@ export default function AlertsPage() {
         </section>
 
         <section className="space-y-5">
+          {alertRows.length === 0 && (
+            <div className="rounded-[34px] border border-[#DDD2C6] bg-[#F8F4EE] p-8 text-sm leading-7 text-[#74685F] shadow-[0_10px_30px_rgba(33,24,19,0.06)]">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-[#8E6A72]">
+                Chưa có dữ liệu
+              </p>
+              <p className="mt-3">
+                Tính năng Alerts hiện chưa được nối với backend nên hệ thống không hiển thị dữ liệu giả.
+              </p>
+              <p className="mt-2 text-xs text-[#9A8A7A]">
+                Khi có API alerts, trang này sẽ hiển thị dữ liệu thật theo tài khoản của bạn.
+              </p>
+            </div>
+          )}
           {alertRows.map(({ alert, product, bestOffer, diff }) => {
             if (!product || !bestOffer) return null;
 

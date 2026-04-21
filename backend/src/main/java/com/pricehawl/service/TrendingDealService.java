@@ -125,6 +125,12 @@ public class TrendingDealService {
                 if (listing == null || listing.getId() == null) {
                     continue;
                 }
+                // Lọc sớm để giảm khối lượng xử lý: chỉ nhận trustScore >= 0.5
+                // (rule này cũng đã có trong TrendingDealEngine, nhưng lọc sớm giúp tiết kiệm CPU).
+                Double trust = listing.getTrustScore();
+                if (trust == null || trust < TrendingDealEngine.MIN_TRUST_SCORE_INCLUSIVE) {
+                    continue;
+                }
                 List<PriceRecord> recsDesc = recsByListingId.getOrDefault(listing.getId(), List.of());
 
                 if (TrendingDealEngine.isEligibleOrganic(listing, recsDesc)) {
