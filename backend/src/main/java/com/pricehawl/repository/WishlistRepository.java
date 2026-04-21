@@ -26,7 +26,9 @@ public interface WishlistRepository extends JpaRepository<Wishlist, UUID> {
             p.id as "productId", 
             p.name as "productName", 
             b.name as "brandName", 
-            pl.platform_image_url as "imageUrl", 
+            pl.platform_image_url as "imageUrl",
+            pl.platform_image_url as "platformImageUrl",
+            p.image_url as "productImageUrl",
             pr.price as "minPrice", 
             pl_platform.name as "platformName"
         FROM wishlist w

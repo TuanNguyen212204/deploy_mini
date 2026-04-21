@@ -58,6 +58,12 @@ export default function WishlistPage() {
           ) : (
             wishlist.map((item: WishlistDisplayItem) => {
               const pId = item.productId || item.id || '';
+              const resolvedImage =
+                item.platformImageUrl ||
+                item.imageUrl ||
+                item.productImageUrl ||
+                (item.images ? item.images[0] : '') ||
+                'https://placehold.co/400x500/ECE4DA/8D7663?text=No+Image';
               
               return (
                 <article key={pId} className="relative z-10 rounded-[34px] border border-[#DDD2C6] bg-[#F8F4EE] p-6 shadow-sm transition-all hover:-translate-y-1">
@@ -67,7 +73,7 @@ export default function WishlistPage() {
                       <div className="h-36 w-28 shrink-0 overflow-hidden rounded-[26px] bg-[#ECE4DA]">
                         {/* --- ĐÃ FIX CƠ CHẾ ẢNH Ở ĐÂY --- */}
                         <img 
-                            src={item.imageUrl || (item.images ? item.images[0] : '') || 'https://placehold.co/400x500/ECE4DA/8D7663?text=No+Image'} 
+                            src={resolvedImage} 
                             alt={item.productName || item.name || 'Sản phẩm'} 
                             className="h-full w-full object-cover"
                             onError={(e) => {
