@@ -1,18 +1,21 @@
 package com.pricehawl.controller;
 
-import org.springframework.stereotype.Controller;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
+@RestController
 public class HomeController {
 
     @GetMapping("/")
-    public String home() {
-        return "redirect:/swagger-ui/index.html";
+    public ResponseEntity<Void> home() {
+        return ResponseEntity.status(302)
+                .header("Location", "/swagger-ui/index.html")
+                .build();
     }
 
     @GetMapping("/health")
-    public String health() {
-        return "ok";
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("ok");
     }
 }
