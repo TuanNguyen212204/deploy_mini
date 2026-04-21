@@ -16,7 +16,9 @@ spring:
       minimum-idle: 1
       idle-timeout: 10000
       max-lifetime: 30000
-      connection-timeout: 30000
+      # Fail-fast: tránh treo request quá lâu khi DB chậm/mất kết nối (Render cold start / network)
+      connection-timeout: 10000
+      validation-timeout: 5000
 
   jpa:
     hibernate:
@@ -25,6 +27,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         default_schema: public
+        # Statement timeout (seconds) để query không treo vô hạn
+        jdbc:
+          timeout: 10
 
   flyway:
     enabled: true
