@@ -31,6 +31,11 @@ export const wishlistService = {
         console.warn('[wishlistApi] Wishlist chưa tồn tại, trả về []');
         return [];
       }
+      // Timeout / network: không chặn UI, coi như wishlist rỗng (user vẫn dùng được search/detail)
+      if (axios.isAxiosError(error) && String(error.message ?? '').toLowerCase().includes('timeout')) {
+        console.warn('[wishlistApi] Timeout khi lấy wishlist, trả về []');
+        return [];
+      }
       logAxiosError('Error fetching wishlist', error);
       throw error;
     }
