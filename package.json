@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "@huggingface/transformers": "^4.0.1",
+    "compute-cosine-similarity": "^1.1.0",
+    "lucide-react": "^1.8.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^7.14.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
+  }
+}
