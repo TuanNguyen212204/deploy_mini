@@ -114,7 +114,10 @@ export function useTrendingDeals() {
     const fetchFresh = async () => {
       const { deals: rows, meta: m, serverStartTime } = await fetchTrendingDeals(
         false,
-        { refresh: true },
+        // Không ép refresh ở lần vào trang đầu tiên.
+        // refresh=true sẽ buộc backend tính lại (nặng), dễ timeout trên Render.
+        // refresh=false sẽ tận dụng cache server (tính 1 lần, dùng lại).
+        { refresh: false },
       )
       if (cancelled) return
       setDeals(rows)
