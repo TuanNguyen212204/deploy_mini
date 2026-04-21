@@ -22,7 +22,26 @@ import axios, { AxiosError, type AxiosInstance } from 'axios';
 function resolveBaseUrl(): string {
   const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const trimmed = raw != null ? String(raw).trim().replace(/\/$/, '') : '';
-  return trimmed.length > 0 ? trimmed : '/api';
+  if (trimmed.length === 0) return '/api';
+
+  // Guard production: backend hiện mount dưới prefix `/api`.
+  // Nếu user lỡ set thiếu `/api` (vd: https://deploy-mini-backend.onrender.com)
+  // thì tự bổ sung để tránh 404 "No static resource ...".
+  try {
+    const u = new URL(trimmed);
+    const p = u.pathname.replace(/\/$/, '');
+    if (p === '' || p === '/') {
+      u.pathname = '/api';
+      return u.toString().replace(/\/$/, '');
+    }
+    if (!p.endsWith('/api') && !p.includes('/api/')) {
+      u.pathname = `${p}/api`;
+      return u.toString().replace(/\/$/, '');
+    }
+  } catch {
+    // Not an absolute URL (could be '/api' or relative) -> leave as is
+  }
+  return trimmed;
 }
 
 export const API_BASE_URL = resolveBaseUrl();
