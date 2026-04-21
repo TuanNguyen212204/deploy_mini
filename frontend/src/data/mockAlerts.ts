@@ -1,0 +1,45 @@
+import type { Alert } from '../types/alert';
+
+export const mockAlerts: Alert[] = [
+  {
+    id: 'alert-1',
+    productId: '10000000-0000-0000-0000-000000000002',
+    targetPrice: 6800000,
+    platform: 'all',
+    channel: 'email',
+    status: 'active',
+    createdAt: '2026-04-02T08:00:00Z',
+    updatedAt: '2026-04-10T09:20:00Z',
+  },
+  {
+    id: 'alert-2',
+    productId: '0b3eab2c-dc2c-4443-81fa-cb48204e13c5',
+    targetPrice: 450000,
+    platform: 'Shopee',
+    channel: 'push',
+    status: 'active',
+    createdAt: '2026-04-03T10:30:00Z',
+    updatedAt: '2026-04-10T09:21:00Z',
+  },
+  {
+    id: 'alert-3',
+    productId: '10000000-0000-0000-0000-000000000009',
+    targetPrice: 4100000,
+    platform: 'Lazada',
+    channel: 'zalo',
+    status: 'paused',
+    createdAt: '2026-04-04T12:00:00Z',
+    updatedAt: '2026-04-09T18:00:00Z',
+  },
+  {
+    id: 'alert-4',
+    productId: '10000000-0000-0000-0000-000000000002',
+    targetPrice: 7000000,
+    platform: 'Shopee',
+    channel: 'push',
+    status: 'triggered',
+    lastTriggeredAt: '2026-04-10T09:20:00Z',
+    createdAt: '2026-04-01T14:00:00Z',
+    updatedAt: '2026-04-10T09:20:00Z',
+  },
+];

@@ -1,0 +1,13 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "C_Cpp.errorSquiggles": "enabled",
+    "java.jdt.ls.vmargs": "-javaagent:${userHome}/.m2/repository/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar -Xbootclasspath/a:${userHome}/.m2/repository/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar",
+    "java.jdt.ls.lombokSupport.enabled": true,
+    "java.eclipse.downloadSources": true,
+    "java.import.gradle.enabled": false,
+    "[java]": {
+        "editor.defaultFormatter": "redhat.java"
+    },
+    "redhat.telemetry.enabled": false
+}
