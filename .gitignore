@@ -4,3 +4,17 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# IntelliJ / IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Build outputs & logs
+**/target/
+**/build/
+**/logs/
+*.log
+*.log.*
+*.gz
