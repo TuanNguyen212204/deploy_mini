@@ -3,7 +3,7 @@ import {
     useContext,
     useEffect,
     useState,
-    ReactNode,
+    type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, type UserProfile } from '../lib/supabase'

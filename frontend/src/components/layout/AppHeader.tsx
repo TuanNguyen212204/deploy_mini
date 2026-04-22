@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
@@ -35,7 +35,7 @@ const navItems: Array<{
 export default function AppHeader({
                                     currentPage,
                                     className = '',
-                                  }: AppHeaderProps): JSX.Element {
+                                  }: AppHeaderProps): React.ReactElement {
   const [scrolled, setScrolled] = useState(false)
   const { user, signOut } = useAuth()
   const navigate = useNavigate()

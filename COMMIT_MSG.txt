@@ -1,0 +1,7 @@
+fix: resolve build errors after merge
+
+- Add missing @EnableScheduling import to BackendApplication
+- Fix React 19 + verbatimModuleSyntax: replace JSX.Element with React.ReactElement
+- Fix ReactNode type-only import in AuthContext.tsx
+- Remove orphan TrendingDealTxBatchRunner.java (not used in final design)
+- Fix constant name reference in TrendingDealRepositories
