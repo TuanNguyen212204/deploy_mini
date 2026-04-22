@@ -1,1 +1,34 @@
-node_modules/ 
+# Logs
+logs/
+*.log
+*.log.*
+
+# IDE / Editor
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local environment files (secrets) — never commit
+.env
+.env.*
+!.env.example
+
+# Build outputs
+**/target/
+**/build/
+**/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+# Java
+backend/bin/

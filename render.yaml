@@ -1,0 +1,20 @@
+# Render Blueprint - PriceHawk Backend
+# Deploy: https://render.com/deploy?repo=https://github.com/TuanNguyen212204/deploy_mini
+
+services:
+  - type: web
+    name: deploy-mini-backend
+    env: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
