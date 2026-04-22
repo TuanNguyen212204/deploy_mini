@@ -9,10 +9,6 @@ export type WishlistDisplayItem = {
   brand?: string;
   brandName?: string;
   imageUrl?: string;
-  /** Ảnh theo listing/sàn (có thể null) */
-  platformImageUrl?: string;
-  /** Ảnh chính của sản phẩm (fallback khi platformImageUrl null) */
-  productImageUrl?: string;
   images?: string[];
   minPrice?: number;
   price?: number;

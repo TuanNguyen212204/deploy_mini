@@ -33,10 +33,6 @@ export default function AuthPage() {
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!supabase) {
-            setError('Hệ thống xác thực chưa được cấu hình. Vui lòng liên hệ quản trị viên.')
-            return
-        }
         setLoading(true)
         setError('')
 

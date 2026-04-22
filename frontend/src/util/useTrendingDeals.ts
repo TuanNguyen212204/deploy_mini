@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchTrendingDeals, resolveUseTrendingApi } from '../api/trendingDeals'
+import { mockTrendingDealCandidates } from '../data/mockDeals'
 import type { TrendingDealDto, TrendingDealsApiMeta } from '../types/trendingDeal'
 
 const TRENDING_CACHE_KEY = 'trendingDeals:cache:v1'
@@ -65,15 +66,25 @@ function isServerErrorMessage(msg: string): boolean {
   return Number.isFinite(status) && status >= 500 && status <= 599
 }
 
-const SYSTEM_UPDATING_MESSAGE = 'Backend đang khởi động (Render free tier). Vui lòng đợi 30-60 giây rồi tải lại trang.'
-const BACKEND_DOWN_MESSAGE = 'Backend không phản hồi. Vui lòng đợi 1-2 phút để server khởi động rồi tải lại trang.'
+const SYSTEM_UPDATING_MESSAGE = 'Hệ thống đang cập nhật, vui lòng thử lại sau.'
+
+function resolveAllowMockFallback(): boolean {
+  const raw = import.meta.env.VITE_TRENDING_ALLOW_MOCK_FALLBACK
+  const s = String(raw ?? '').toLowerCase().trim()
+  if (s === 'true' || s === '1') return true
+  if (s === 'false' || s === '0') return false
+  // mặc định: KHÔNG fallback để tránh "nhìn như có data backend" nhưng thực ra là mock
+  return false
+}
 
 export function useTrendingDeals() {
   const useApi = resolveUseTrendingApi()
+  const allowMockFallback = resolveAllowMockFallback()
   const [deals, setDeals] = useState<TrendingDealDto[] | null>(useApi ? null : [])
   const [meta, setMeta] = useState<TrendingDealsApiMeta | null>(null)
   const [loading, setLoading] = useState(useApi)
   const [error, setError] = useState<string | null>(null)
+  const [usingMockFallback, setUsingMockFallback] = useState(false)
 
   /* eslint-disable react-hooks/set-state-in-effect -- khởi tạo/cache trending phức tạp, nhiều nhánh setState có chủ đích */
   useEffect(() => {
@@ -82,6 +93,7 @@ export function useTrendingDeals() {
     let cancelled = false
 
     setError(null)
+    setUsingMockFallback(false)
 
     // 1) Ưu tiên render ngay từ sessionStorage (nếu còn hạn 30 phút)
     const cached = readCacheNow()
@@ -102,15 +114,13 @@ export function useTrendingDeals() {
     const fetchFresh = async () => {
       const { deals: rows, meta: m, serverStartTime } = await fetchTrendingDeals(
         false,
-        // Không ép refresh ở lần vào trang đầu tiên.
-        // refresh=true sẽ buộc backend tính lại (nặng), dễ timeout trên Render.
-        // refresh=false sẽ tận dụng cache server (tính 1 lần, dùng lại).
-        { refresh: false },
+        { refresh: true },
       )
       if (cancelled) return
       setDeals(rows)
       setMeta(m)
       setError(null)
+      setUsingMockFallback(false)
       writeCacheNow({
         savedAtMs: Date.now(),
         serverStartTime,
@@ -141,14 +151,22 @@ export function useTrendingDeals() {
         if (isServerError) {
           setDeals([])
           setMeta(null)
+          setUsingMockFallback(false)
           setError(SYSTEM_UPDATING_MESSAGE)
           setLoading(false)
           return
         }
 
         setError(msg)
-        setDeals([])
-        setMeta(null)
+        if (allowMockFallback) {
+          setDeals(mockTrendingDealCandidates)
+          setMeta(null)
+          setUsingMockFallback(true)
+        } else {
+          setDeals([])
+          setMeta(null)
+          setUsingMockFallback(false)
+        }
         setLoading(false)
       })
     } else {
@@ -202,7 +220,7 @@ export function useTrendingDeals() {
             clearCacheNow()
             setDeals([])
             setMeta(null)
-            setError(BACKEND_DOWN_MESSAGE)
+            setError('Backend không chạy. Không tìm thấy sản phẩm')
             return
           }
           if (isServerErrorMessage(msg)) {
@@ -211,6 +229,7 @@ export function useTrendingDeals() {
             clearCacheNow()
             setDeals([])
             setMeta(null)
+            setUsingMockFallback(false)
             setError(SYSTEM_UPDATING_MESSAGE)
           }
         })
@@ -219,8 +238,8 @@ export function useTrendingDeals() {
     return () => {
       cancelled = true
     }
-  }, [useApi])
+  }, [useApi, allowMockFallback])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { deals, loading, meta, useApi, error }
+  return { deals, loading, meta, useApi, error, usingMockFallback }
 }

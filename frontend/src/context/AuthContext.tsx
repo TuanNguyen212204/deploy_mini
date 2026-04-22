@@ -26,28 +26,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [profile, setProfile] = useState<UserProfile | null>(null)
     const [loading, setLoading] = useState(true)
 
+    // Lấy profile từ bảng users
     const fetchProfile = async (userId: string) => {
-        if (!supabase) return
         const { data, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', userId)
             .single()
+
         if (!error && data) setProfile(data as UserProfile)
     }
 
     useEffect(() => {
-        if (!supabase) {
-            setLoading(false)
-            return
-        }
-
+        // 1. Lấy session hiện tại khi app khởi động
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session)
             if (session?.user) fetchProfile(session.user.id)
             setLoading(false)
         })
 
+        // 2. Lắng nghe thay đổi auth (login / logout / token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (_event, session) => {
                 setSession(session)
@@ -64,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const signOut = async () => {
-        if (supabase) await supabase.auth.signOut()
+        await supabase.auth.signOut()
     }
 
     return (

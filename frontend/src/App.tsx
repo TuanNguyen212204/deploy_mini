@@ -1,4 +1,3 @@
-import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { ProtectedRoute, GuestRoute } from './components/Auth/RouteGuards'
@@ -12,7 +11,7 @@ import DealsPage from './pages/DealsPage'
 import TrendingDealsPage from './pages/TrendingDealsPage'
 import AuthPage from './pages/AuthPage'
 
-export default function App(): React.ReactElement {
+export default function App() {
   return (
       <AuthProvider>
         <BrowserRouter>

@@ -1,16 +1,12 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase: SupabaseClient | null =
-    (supabaseUrl && supabaseKey)
-        ? createClient(supabaseUrl, supabaseKey)
-        : null;
-
-if (!supabase) {
-    console.warn('[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY — auth features disabled.');
+if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables')
 }
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 
 export interface UserProfile {

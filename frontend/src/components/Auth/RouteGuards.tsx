@@ -1,8 +1,7 @@
-import React from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
-export function ProtectedRoute(): React.ReactElement {
+export function ProtectedRoute() {
     const { session, loading } = useAuth()
 
     if (loading) {
@@ -14,12 +13,11 @@ export function ProtectedRoute(): React.ReactElement {
     return <Outlet />
 }
 
-export function GuestRoute(): React.ReactElement {
+export function GuestRoute() {
     const { session, loading } = useAuth()
 
     if (loading) return <div>Loading...</div>
 
-    // 🔥 FIX BUG: /home -> /
     if (session) return <Navigate to="/" replace />
 
     return <Outlet />

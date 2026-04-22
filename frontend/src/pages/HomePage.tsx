@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import Badge from '../components/common/Badge';
 import ProductCard from '../components/product/ProductCard';
+import { mockProducts } from '../data/mockProducts';
 import AppHeader from '../components/layout/AppHeader';
 import { useTrendingDeals } from '../util/useTrendingDeals';
 import {
@@ -48,7 +49,23 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const { deals, loading, error } = useTrendingDeals();
+  const { deals, loading } = useTrendingDeals();
+
+
+
+  const curatedProducts = useMemo(() => {
+    return mockProducts.filter(
+        (product) =>
+            !product.insight.isFakeDiscountRisk &&
+            (product.insight.isLowest30Days ||
+                product.insight.isLowest90Days ||
+                product.insight.lowerThanAvg30dPercent >= 10),
+    );
+  }, []);
+
+  const featuredProduct = useMemo(() => {
+    return curatedProducts[0] ?? mockProducts[0];
+  }, [curatedProducts]);
 
   const homeHighlights = useMemo(() => {
     const list = deals ?? [];
@@ -57,10 +74,6 @@ export default function HomePage() {
     const sorted = [...list].sort(sortByDealScoreDesc);
     return sorted.slice(0, 3).map(trendingDealToProductSearch);
   }, [deals]);
-
-  const featuredProduct = useMemo(() => {
-    return homeHighlights[0] ?? null;
-  }, [homeHighlights]);
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -143,82 +156,46 @@ export default function HomePage() {
             </div>
 
             <div className="rounded-[36px] border border-white/50 bg-white/70 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-              {loading && !featuredProduct && (
-                <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white/40 text-sm text-stone-500">
-                  <p className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[#8E6A72]" aria-hidden />
-                    Đang tải dữ liệu…
-                  </p>
-                </div>
-              )}
+              <div className="relative overflow-hidden rounded-[28px] bg-[#F5EEE8]">
+                <img
+                    src={featuredProduct.images[0]}
+                    alt={featuredProduct.name}
+                    className="aspect-[4/4.6] w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/10" />
+              </div>
 
-              {!loading && !featuredProduct && (
-                <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white/40 p-10 text-center text-sm text-stone-500">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-[#8E6A72]">
-                    Dữ liệu chưa sẵn sàng
-                  </p>
-                  <p className="mt-3 leading-7">
-                    {error ? 'Không thể tải dữ liệu từ backend. Vui lòng thử lại sau.' : 'Chưa có sản phẩm để hiển thị.'}
-                  </p>
-                  {error && <p className="mt-2 text-xs text-stone-400">{error}</p>}
-                  {error && (
-                    <button
-                      type="button"
-                      onClick={() => window.location.reload()}
-                      className="mt-5 rounded-full bg-[#1F1A17] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Tải lại trang
-                    </button>
+              <div className="mt-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="brand">Lựa chọn nổi bật</Badge>
+                  {!featuredProduct.insight.isFakeDiscountRisk && (
+                      <Badge variant="soft">Đáng cân nhắc hôm nay</Badge>
                   )}
                 </div>
-              )}
 
-              {featuredProduct && (
-                <>
-                  <div className="relative overflow-hidden rounded-[28px] bg-[#F5EEE8]">
-                    <img
-                      src={featuredProduct.images?.[0] ?? '/fallback-product.svg'}
-                      alt={featuredProduct.name}
-                      className="aspect-[4/4.6] w-full object-cover"
-                      onError={(e) => {
-                        if (e.currentTarget.src.endsWith('/fallback-product.svg')) return
-                        e.currentTarget.src = '/fallback-product.svg'
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-white/10" />
-                  </div>
+                <p className="mt-4 text-[10px] uppercase tracking-[0.12em] text-[#8E6A72]">
+                  {featuredProduct.brand}
+                </p>
 
-                  <div className="mt-6">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="brand">Lựa chọn nổi bật</Badge>
-                      <Badge variant="soft">Đáng cân nhắc hôm nay</Badge>
-                    </div>
+                <h2
+                    className="mt-3 text-3xl leading-[1.14] tracking-[-0.02em] text-stone-900"
+                    style={{ fontFamily: FONT_STACK.serif }}
+                >
+                  {featuredProduct.name}
+                </h2>
 
-                    <p className="mt-4 text-[10px] uppercase tracking-[0.12em] text-[#8E6A72]">
-                      {featuredProduct.brandName ?? featuredProduct.brand ?? '—'}
-                    </p>
+                <p className="mt-4 text-sm leading-7 text-stone-500">
+                  {featuredProduct.insight.summary}
+                </p>
 
-                    <h2
-                      className="mt-3 text-3xl leading-[1.14] tracking-[-0.02em] text-stone-900"
-                      style={{ fontFamily: FONT_STACK.serif }}
-                    >
-                      {featuredProduct.name}
-                    </h2>
-
-                    <p className="mt-4 text-sm leading-7 text-stone-500">
-                      Gợi ý từ dữ liệu trending hiện tại.
-                    </p>
-
-                    <Link
-                      to={`/product/${featuredProduct.id}`}
-                      className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-stone-700 transition hover:text-[#8E6A72]"
-                    >
-                      Xem chi tiết
-                      <ArrowRight size={16} />
-                    </Link>
-                  </div>
-                </>
-              )}
+                <Link
+                    to={`/product/${featuredProduct.id}`}
+                    className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-stone-700 transition hover:text-[#8E6A72]"
+                >
+                  Xem chi tiết
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             </div>
           </section>
 

@@ -124,4 +124,3 @@ export function isDealOlderThanDays(d: TrendingDealDto, days: number, now = new 
   if (!Number.isFinite(diffMs)) return false
   return diffMs >= days * 24 * 60 * 60 * 1000
 }
-

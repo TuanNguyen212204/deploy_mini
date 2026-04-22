@@ -87,27 +87,19 @@ export default function TrendingDealsPage() {
         {loading && total === 0 && (
           <p className="mt-6 flex items-center gap-2 text-sm text-stone-500">
             <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-            <span>Đang tải trending deals…</span>
+            <span>Đang tải </span>
           </p>
         )}
 
         {!loading && total === 0 && error && (
-          <div className="mt-6 text-sm text-stone-500">
-            <p>Không thể tải trending deals. Vui lòng thử lại sau.</p>
-            <span className="block text-xs text-stone-400">{error}</span>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-4 rounded-full bg-[#1F1A17] px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Tải lại trang
-            </button>
-          </div>
+          <p className="mt-6 text-sm text-stone-500">
+            Không tìm thấy sản phẩm phù hợp
+          </p>
         )}
 
         {!loading && total === 0 && !error && (
           <p className="mt-6 text-sm text-stone-500">
-            Chưa có trending deals.
+            Không tìm thấy sản phẩm phù hợp
           </p>
         )}
 

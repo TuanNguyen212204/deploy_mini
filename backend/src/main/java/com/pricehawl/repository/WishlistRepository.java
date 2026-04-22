@@ -26,16 +26,14 @@ public interface WishlistRepository extends JpaRepository<Wishlist, UUID> {
             p.id as "productId", 
             p.name as "productName", 
             b.name as "brandName", 
-            pl.platform_image_url as "imageUrl",
-            pl.platform_image_url as "platformImageUrl",
-            p.image_url as "productImageUrl",
+            pl.platform_image_url as "imageUrl", 
             pr.price as "minPrice", 
             pl_platform.name as "platformName"
         FROM wishlist w
         JOIN product p ON w.product_id = p.id
         JOIN brand b ON p.brand_id = b.id
         LEFT JOIN LATERAL (
-            -- SỬA Ở ĐÂY: Thêm pl.platform_image_url để lấy ảnh từ listing
+            -- Thêm pl.platform_image_url để lấy ảnh từ listing
             SELECT pl.id, pl.platform_id, pl.platform_image_url 
             FROM product_listing pl 
             WHERE pl.product_id = p.id 
