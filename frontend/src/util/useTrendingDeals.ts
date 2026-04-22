@@ -8,7 +8,7 @@ const TRENDING_CACHE_TTL_MS = 30 * 60 * 1000 // 30 phút
 type TrendingDealsSessionCache = {
   savedAtMs: number
   /**
-   * “Dấu mốc backend” để phát hiện chạy lại.
+   * "Dấu mốc backend" để phát hiện chạy lại.
    * Backend hiện có `X-Trending-Computed-At`; ta lưu lại để so sánh.
    */
   serverStartTime: string | null
@@ -152,7 +152,7 @@ export function useTrendingDeals() {
         setLoading(false)
       })
     } else {
-      // 3) Cache còn hạn: vẫn “dùng ngay”, nhưng kiểm tra backend có chạy lại không.
+      // 3) Cache còn hạn: vẫn "dùng ngay", nhưng kiểm tra backend có chạy lại không.
       // Nếu backend mới hơn cache -> xoá cache và lấy lại data mới.
       // Nếu cache thiếu ảnh (imageUrl/imageUrls rỗng) -> lấy lại data (refresh=false) để đồng bộ ảnh từ backend.
       setLoading(false)

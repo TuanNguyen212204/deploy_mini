@@ -1,18 +1,13 @@
 import { useMemo, useState } from 'react'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import {
-  TRENDING_DEAL_DISCLAIMER,
-  TRENDING_DEAL_FONT_STACK,
-} from '../../util/trendingDealFormat'
+import { TRENDING_DEAL_DISCLAIMER, TRENDING_DEAL_FONT_STACK } from '../../util/trendingDealFormat'
 import { useTrendingDeals } from '../../util/useTrendingDeals'
 import { TrendingDealRow } from './TrendingDealRow'
 
 export default function TrendingDealsSection() {
   const { deals, loading, error } = useTrendingDeals()
-  const [brokenListingIds, setBrokenListingIds] = useState<Set<string>>(
-    () => new Set(),
-  )
+  const [brokenListingIds, setBrokenListingIds] = useState<Set<string>>(() => new Set())
 
   const list = useMemo(() => deals ?? [], [deals])
   const sorted = useMemo(() => {
@@ -27,12 +22,10 @@ export default function TrendingDealsSection() {
       const ds = (b.dealScore ?? 0) - (a.dealScore ?? 0)
       if (Math.abs(ds) > 1e-9) return ds
 
-      // Nếu cùng dealScore: ưu tiên sản phẩm không lỗi hình ảnh.
       const ab = brokenListingIds.has(a.listingId) ? 1 : 0
       const bb = brokenListingIds.has(b.listingId) ? 1 : 0
       if (ab !== bb) return ab - bb
 
-      // Nếu chưa biết load lỗi: ưu tiên có imageUrl (không rỗng)
       const ah = a.imageUrl && String(a.imageUrl).trim().length > 0 ? 1 : 0
       const bh = b.imageUrl && String(b.imageUrl).trim().length > 0 ? 1 : 0
       if (ah !== bh) return bh - ah
@@ -45,16 +38,10 @@ export default function TrendingDealsSection() {
   const visible = sorted.slice(0, 5)
 
   return (
-    <section
-      className="mb-14 rounded-[34px] border border-[#DDD2C6] bg-white/90 p-8 shadow-[0_14px_35px_rgba(15,23,42,0.05)]"
-      style={{ fontFamily: TRENDING_DEAL_FONT_STACK.sans }}
-    >
+    <section className="mb-14 rounded-[34px] border border-[#DDD2C6] bg-white/90 p-8 shadow-[0_14px_35px_rgba(15,23,42,0.05)]" style={{ fontFamily: TRENDING_DEAL_FONT_STACK.sans }}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="w-full min-w-0">
-          <h2
-            className="text-2xl text-stone-900 md:text-3xl"
-            style={{ fontFamily: TRENDING_DEAL_FONT_STACK.serif }}
-          >
+          <h2 className="text-2xl text-stone-900 md:text-3xl" style={{ fontFamily: TRENDING_DEAL_FONT_STACK.serif }}>
             Trending deals
           </h2>
           <p className="mt-3 text-balance text-xs leading-relaxed text-stone-500 sm:text-sm">

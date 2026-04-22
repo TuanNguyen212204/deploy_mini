@@ -18,8 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,31 +25,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TrendingDealService {
 
-    /** Scan candidate theo batch (Slice) để tránh COUNT() và giảm peak memory. */
     private static final int TRENDING_CANDIDATE_SLICE_SIZE = 400;
-    /** Số listing tối đa scan (phòng DB quá lớn). */
     private static final int TRENDING_MAX_CANDIDATES_SCAN = 2400;
-    /** Số bản ghi giá gần nhất mỗi listing dùng để score trending. */
     private static final int TRENDING_PRICE_RECORDS_PER_LISTING = 80;
-    /** Giới hạn số deal trả về để response nhẹ + UI đủ dùng. */
     private static final int MAX_TRENDING_DEALS_RETURN = 100;
 
     private final TrendingDealRepository trendingDealRepository;
     private final PriceRecordRepository priceRecordRepository;
 
-    /**
-     * Cache in-memory theo snapshot TTL để:
-     * - Trả về "stale snapshot" ngay lập tức khi cần (không treo request).
-     * - Khi snapshot hết hạn, trigger compute async và vẫn trả snapshot cũ.
-     * - Khi lần đầu chưa có snapshot, trả 503 nhanh + trigger warm-up async
-     *   (FE có retry) để tránh frontend timeout 15–20s.
-     */
     public TrendingDealsSnapshot getTrendingDealsSnapshot(boolean expand, boolean refresh) {
         return refresh ? computeNowAndStore(expand) : getOrWarmNonBlocking(expand);
     }
@@ -73,20 +62,16 @@ public class TrendingDealService {
         TrendingDealsSnapshot snap = h.snapshot;
         Instant now = Instant.now();
 
-        // Có snapshot còn hạn → trả ngay.
         if (snap != null && h.expiresAt != null && now.isBefore(h.expiresAt)) {
             return snap;
         }
 
-        // Snapshot hết hạn hoặc chưa có → trigger async compute 1 lần.
         triggerWarmIfNeeded(expand, h);
 
-        // Có snapshot cũ → trả snapshot cũ (stale) để không timeout FE.
         if (snap != null) {
             return snap;
         }
 
-        // Lần đầu chưa có gì → trả 503 nhanh để FE retry.
         throw new TrendingDealsComputationException(
                 "Trending deals đang khởi tạo trên server (warm-up). Vui lòng thử lại sau vài giây.");
     }
@@ -107,7 +92,6 @@ public class TrendingDealService {
                     h.snapshot = fresh;
                     h.expiresAt = fresh.computedAt().plusSeconds(fresh.cacheTtlSeconds());
                 } catch (RuntimeException ex) {
-                    // Không phá request khác: log và giữ snapshot cũ (nếu có).
                     log.error("Async trending warm-up failed (expand={})", expand, ex);
                 }
             });
@@ -123,10 +107,6 @@ public class TrendingDealService {
     }
 
     private TrendingDealsSnapshot buildSnapshot(boolean expand) {
-        // Bọc toàn bộ pipeline tính trending trong 1 try/catch duy nhất để
-        // mọi lỗi không mong muốn (NPE dữ liệu bẩn, lỗi scoring, lỗi map...)
-        // đều được chuyển thành TrendingDealsComputationException (→ 503),
-        // thay vì để Spring bọc thành 500 chung chung.
         try {
             return buildSnapshotUnsafe(expand);
         } catch (TrendingDealsComputationException e) {
@@ -229,9 +209,6 @@ public class TrendingDealService {
         }
 
         List<TrendingDealResponse> body;
-        // Backend luôn trả full danh sách đã chấm điểm (không giới hạn 5),
-        // việc hiển thị/pagination để frontend xử lý.
-        // Null-safe ở tầng mapping: bỏ qua deal bị lỗi để không ném NPE/500.
         body = representatives.stream()
                 .map(d -> {
                     try {
@@ -243,7 +220,6 @@ public class TrendingDealService {
                                 mapToResponse(d, pid != null ? priceConflictByProduct.get(pid) : Boolean.FALSE);
                         if (res == null) return null;
 
-                        // Loại dữ liệu demo/seed khỏi API trending (không bao giờ hiển thị trên FE).
                         String name = res.getProductName();
                         if (name != null) {
                             String s = name.toUpperCase();
@@ -279,7 +255,6 @@ public class TrendingDealService {
 
         String explanation = TrendingDealEngine.Explanations.forDeal(l, calc, discountPct, latest);
 
-        // Ưu tiên ảnh gốc của product; nếu thiếu thì fallback sang ảnh của listing.
         String imageUrl = null;
         if (l.getProduct() != null && l.getProduct().getImageUrl() != null && !l.getProduct().getImageUrl().isEmpty()) {
             imageUrl = l.getProduct().getImageUrl();
@@ -287,8 +262,6 @@ public class TrendingDealService {
             imageUrl = l.getPlatformImageUrl();
         }
 
-        // Null-safe cho product (JOIN FETCH về lý thuyết luôn có product,
-        // nhưng vẫn defensive để không ném NPE khi dữ liệu bẩn).
         UUID productId = l.getProduct() != null ? l.getProduct().getId() : null;
         String productName = l.getProduct() != null ? l.getProduct().getName() : null;
 
@@ -349,34 +322,26 @@ public class TrendingDealService {
 
     private static Comparator<TrendingDealDTO> trendingSortComparator() {
         return Comparator
-                // isPinned: true lên trước
                 .comparing((TrendingDealDTO d) -> d.listing() != null && Boolean.TRUE.equals(d.listing().getIsPinned()),
                         Comparator.reverseOrder())
-                // discountPct cao hơn (ưu tiên trước)
                 .thenComparing((TrendingDealDTO d) -> {
                     PriceRecord latest = d.latestPriceRecord();
                     if (latest == null) return 0.0;
                     return TrendingDealEngine.platformDiscountPct(latest);
                 }, Comparator.reverseOrder())
-                // nếu cùng discountPct, ưu tiên flash sale
                 .thenComparing((TrendingDealDTO d) -> {
                     PriceRecord latest = d.latestPriceRecord();
                     return latest != null && Boolean.TRUE.equals(latest.getIsFlashSale());
                 }, Comparator.reverseOrder())
-                // totalDealScore cao hơn
                 .thenComparing((TrendingDealDTO d) -> d.score().totalDealScore(), Comparator.reverseOrder())
-                // discountScore cao hơn
                 .thenComparing((TrendingDealDTO d) -> d.score().discountScore(), Comparator.reverseOrder())
-                // trustScore cao hơn
                 .thenComparing((TrendingDealDTO d) -> d.score().trustScore(), Comparator.reverseOrder())
-                // nếu cùng sản phẩm, ưu tiên price thấp hơn
                 .thenComparing(d -> {
                     PriceRecord latest = d.latestPriceRecord();
                     Integer p = latest != null ? latest.getPrice() : null;
                     return p == null ? Integer.MAX_VALUE : p;
                 });
     }
-
 
     static final class PriceConflictStats {
         private Integer minPrice;

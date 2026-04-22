@@ -1,32 +1,10 @@
 import axios, { AxiosError, type AxiosInstance } from 'axios';
 
-// ==========================================================================
-// apiClient
-// --------------------------------------------------------------------------
-// Client axios dùng chung cho toàn bộ frontend.
-//
-// Quy tắc baseURL (sau khi merge, để tránh phải cấu hình env từng máy):
-//   - Nếu có `VITE_API_BASE_URL` trong .env        → dùng giá trị đó (đã trim,
-//     đã bỏ dấu `/` cuối). Ví dụ: `http://localhost:8080`.
-//   - Nếu KHÔNG set                                 → fallback về `/api`
-//     → đi qua proxy của Vite (xem `vite.config.ts`) nên:
-//       * không cần CORS backend,
-//       * dev và prod cùng dùng 1 code, chỉ khác env.
-//
-// Tất cả request/response đều log ra console để dễ debug sau merge:
-//   [api][req] GET /api/products/search { q: '...' }
-//   [api][res] 200  /products/search
-//   [api][err] GET  /api/products/search → 500 Request failed with status 500
-// ==========================================================================
-
 function resolveBaseUrl(): string {
   const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const trimmed = raw != null ? String(raw).trim().replace(/\/$/, '') : '';
   if (trimmed.length === 0) return '/api';
 
-  // Guard production: backend hiện mount dưới prefix `/api`.
-  // Nếu user lỡ set thiếu `/api` (vd: https://deploy-mini-backend.onrender.com)
-  // thì tự bổ sung để tránh 404 "No static resource ...".
   try {
     const u = new URL(trimmed);
     const p = u.pathname.replace(/\/$/, '');
@@ -53,8 +31,6 @@ export const apiClient: AxiosInstance = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  // Log để dễ trace call path sau khi merge (đặc biệt khi đổi từ
-  // `http://localhost:8080/...` sang `/api/...` chạy qua proxy).
   console.log(
     '[api][req]',
     config.method?.toUpperCase(),

@@ -18,37 +18,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Gom JPA repository (nested). Bật {@code considerNestedRepositories} trên {@code @EnableJpaRepositories}.
- * Tên file/module theo chức năng trending deal để tách với phần khác trong nhóm.
- */
 public final class TrendingDealRepositories {
 
     private TrendingDealRepositories() {
     }
 
-    /**
-     * Ứng viên sơ bộ (DB). Lọc sâu ở {@link com.pricehawl.service.TrendingDealEngine}.
-     */
     public interface TrendingDealRepository extends JpaRepository<ProductListing, UUID> {
 
-        /**
-         * Chỉ lấy id + phân trang: tránh load toàn bộ listing (trước đây query không WHERE
-         * có thể kéo hàng chục nghìn dòng và làm API treo).
-         */
         @Query("""
                 SELECT p.id FROM ProductListing p
                 """)
         Page<UUID> findTrendingCandidateIds(Pageable pageable);
 
-        /**
-         * Candidate query có pre-filter mạnh ở DB:
-         * - platform active (null coi như active)
-         * - trustScore đạt ngưỡng yêu cầu
-         * - có PriceRecord gần đây (để tránh listing "chết" làm nặng pipeline)
-         *
-         * Dùng Slice để scan theo batch mà không cần COUNT().
-         */
         @Query("""
                 SELECT p.id FROM ProductListing p
                 JOIN p.platform plat
@@ -89,10 +70,6 @@ public final class TrendingDealRepositories {
 
         List<PriceRecord> findByProductListingIdOrderByCrawledAtDesc(UUID productListingId);
 
-        /**
-         * Batch lấy N bản ghi giá mới nhất cho mỗi listing trong danh sách, có filter `since`.
-         * Dùng window function để tránh N+1 query ở `TrendingDealService`.
-         */
         @Query(value = """
             SELECT * FROM (
               SELECT pr.*,

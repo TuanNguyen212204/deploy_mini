@@ -2,6 +2,7 @@ package com.pricehawl.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -14,6 +15,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -47,6 +49,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
         return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
+
 
     // 405: đúng path nhưng sai method (ví dụ DELETE nhưng controller chỉ có GET)
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -92,6 +95,7 @@ public class GlobalExceptionHandler {
                         + (cause != null ? " (" + cause + ")" : ""),
                 "DB_UNAVAILABLE");
     }
+
 
     // 503: tính toán trending deals bị lỗi (NPE, dữ liệu bẩn, scoring fail...).
     // Tách khỏi fallback Exception để FE phân biệt "hệ thống đang cập nhật"

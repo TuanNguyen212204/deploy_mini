@@ -13,12 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
-/**
- * Logic thuần trending: eligibility, giảm giá từ lịch sử, chấm điểm & giải thích (gom một file).
- */
 public final class TrendingDealEngine {
 
-    // DealScore = 0.55 * DiscountScore + 0.25 * TrustScore + 0.2 * FreshnessScore
     private static final double W_DISCOUNT = 0.55;
     private static final double W_TRUST = 0.25;
     private static final double W_FRESH = 0.20;
@@ -26,16 +22,12 @@ public final class TrendingDealEngine {
     private TrendingDealEngine() {
     }
 
-    /* --- Eligibility (trước đây TrendingDealEligibility) --- */
-
     public static final long SNAPSHOT_CACHE_TTL_SECONDS = 2L * 60 * 60;
     public static final int MIN_EXPLANATION_LENGTH = 40;
     public static final String STATUS_ACTIVE = "ACTIVE";
     public static final float MIN_DISCOUNT_PCT_EXCLUSIVE = 10f;
 
-    /** Trending chỉ nhận listing có trustScore >= 1.0 (thực tế DB thường chuẩn hoá [0..1]). */
     public static final double MIN_TRUST_SCORE_INCLUSIVE = 1.00;
-    /** Candidate scan chỉ xét listing có dữ liệu giá trong khoảng lookback này. */
     public static final int PRICE_LOOKBACK_DAYS_FOR_CANDIDATE_EXISTS = 60;
 
     public static final float BADGE_HOT_MIN_DISCOUNT_PCT_INCLUSIVE = 30f;
@@ -78,9 +70,6 @@ public final class TrendingDealEngine {
     public static boolean isEligibleOrganic(
             ProductListing listing,
             List<PriceRecord> recsDesc) {
-
-        // Phòng vệ toàn bộ: dữ liệu bẩn (listing/price record thiếu field)
-        // không được phép làm 500 cả request. Lỗi ở 1 listing → loại listing đó.
         try {
             if (listing == null || !passesCoreListingRules(listing)) {
                 return false;
@@ -91,33 +80,23 @@ public final class TrendingDealEngine {
                 return false;
             }
 
-            // Eligibility theo yêu cầu:
-            // - PriceRecord: discountPct > 10%, inStock == true, isFlashSale null-safe
-            // - ProductListing: trustScore >= 0.50
             if (!hasInStockLatest(latest)) {
                 return false;
             }
-            // FreshnessScore bắt buộc → cần crawledAt hợp lệ để tính freshness tier.
             if (latest.getCrawledAt() == null) {
                 return false;
             }
 
-            // isFlashSale đọc null-safe (null -> false). Không dùng làm tiêu chí loại
-            // listing, nhưng vẫn "chạm" để bảo đảm đọc được field, tránh NPE khi
-            // downstream (scoring / response) đọc lại.
             boolean flashSale = Boolean.TRUE.equals(latest.getIsFlashSale());
             if (flashSale && latest.getPrice() == null) {
-                // Flash sale mà thiếu price hiện tại là dữ liệu lỗi → loại.
                 return false;
             }
 
-            // Filter eligibility theo discountPct gốc DB (không fallback).
             float discountPct = calculateStoredDiscountPct(latest);
             if (!(discountPct > MIN_DISCOUNT_PCT_EXCLUSIVE)) {
                 return false;
             }
 
-            // trustScore bắt buộc (null → loại, không throw)
             Double trustRaw = listing.getTrustScore();
             if (trustRaw == null) {
                 return false;
@@ -128,10 +107,49 @@ public final class TrendingDealEngine {
             }
             return trust >= MIN_TRUST_SCORE_INCLUSIVE;
         } catch (RuntimeException ignored) {
-            // Defensive: bất kỳ NPE/IllegalState nào từ dữ liệu bẩn → loại listing
-            // thay vì 500 cả response.
             return false;
         }
+    }
+
+    public static float calculateStoredDiscountPct(PriceRecord latest) {
+        if (latest == null) {
+            return 0f;
+        }
+        Float db = latest.getDiscountPct();
+        if (db == null) {
+            return 0f;
+        }
+        if (Float.isNaN(db) || Float.isInfinite(db)) {
+            return 0f;
+        }
+        return Math.max(0f, Math.min(100f, db));
+    }
+
+    public static float calculateDisplayDiscountPct(PriceRecord latest) {
+        if (latest == null) {
+            return 0f;
+        }
+        Integer o = latest.getOriginalPrice();
+        Integer price = latest.getPrice();
+        if (o == null || o <= 0 || price == null || price <= 0) {
+            return 0f;
+        }
+        double raw = (1.0 - price / (double) o) * 100.0;
+        double clamped = Math.max(0.0, Math.min(100.0, raw));
+        return (float) Math.round(clamped);
+    }
+
+    public static String computeBadge(boolean pinned, float discountPct) {
+        if (pinned) {
+            return "PINNED";
+        }
+        if (discountPct >= BADGE_HOT_MIN_DISCOUNT_PCT_INCLUSIVE) {
+            return "HOT";
+        }
+        if (discountPct > BADGE_DEAL_MIN_DISCOUNT_PCT_EXCLUSIVE) {
+            return "DEAL";
+        }
+        return "TRENDING";
     }
 
     public static boolean isLikelyFakePromo(List<PriceRecord> raw) {
@@ -178,15 +196,12 @@ public final class TrendingDealEngine {
         Integer o = r.getOriginalPrice();
         Integer price = r.getPrice();
 
-        // Option A: ưu tiên tự tính khi có đủ originalPrice và currentPrice hợp lệ.
         if (o != null && o > 0 && price != null && price > 0) {
             double raw = (1.0 - price / (double) o) * 100.0;
             double clamped = Math.max(0.0, Math.min(100.0, raw));
-            // Làm tròn để UI hiển thị đẹp (vd: 10% thay vì 10.2345%).
             return Math.round(clamped);
         }
 
-        // Chỉ dùng discountPct từ DB khi originalPrice thiếu hoặc không hợp lệ.
         Float db = r.getDiscountPct();
         if (db != null && db >= 0) {
             double clamped = Math.max(0.0, Math.min(100.0, db));
@@ -194,30 +209,6 @@ public final class TrendingDealEngine {
         }
 
         return 0.0;
-    }
-
-    /**
-     * Discount dùng để FILTER eligibility: chỉ dùng discountPct "lưu trong DB" (không fallback),
-     * để tránh trường hợp thiếu originalPrice nhưng vẫn hiển thị % giảm.
-     */
-    public static float calculateStoredDiscountPct(PriceRecord r) {
-        if (r == null) return 0f;
-        Float v = r.getDiscountPct();
-        if (v == null) return 0f;
-        if (v.isNaN() || v.isInfinite()) return 0f;
-        return (float) Math.max(0.0, Math.min(100.0, v));
-    }
-
-    /** Discount dùng để HIỂN THỊ/score: tính lại từ originalPrice/price nếu có; fallback sang discountPct. */
-    public static float calculateDisplayDiscountPct(PriceRecord r) {
-        return (float) platformDiscountPct(r);
-    }
-
-    public static String computeBadge(boolean pinned, float discountPct) {
-        if (pinned) return "PINNED";
-        if (discountPct >= BADGE_HOT_MIN_DISCOUNT_PCT_INCLUSIVE) return "HOT";
-        if (discountPct > BADGE_DEAL_MIN_DISCOUNT_PCT_EXCLUSIVE) return "DEAL";
-        return "TRENDING";
     }
 
     private static boolean suddenDeepDiscountAfterQuietHistory(
@@ -324,8 +315,6 @@ public final class TrendingDealEngine {
         return Math.sqrt(var);
     }
 
-    /* --- Historical discount (trước đây HistoricalPriceDiscount) --- */
-
     public record HistoricalDiscountResult(int referencePrice, int currentPrice, float discountPercent) {
     }
 
@@ -381,8 +370,6 @@ public final class TrendingDealEngine {
         return (copy.get(mid - 1) + copy.get(mid)) / 2;
     }
 
-    /* --- Scoring (trước đây TrendingDealScorer) --- */
-
     public static DealScoreCalculation score(
             ProductListing listing,
             List<PriceRecord> recordsDesc) {
@@ -421,16 +408,16 @@ public final class TrendingDealEngine {
         if (minutes < 0) {
             minutes = 0;
         }
-        if (minutes < 2L * 60) {       // < 2 giờ
+        if (minutes < 2L * 60) {
             return 1.00;
         }
-        if (minutes < 6L * 60) {       // 2–6 giờ
+        if (minutes < 6L * 60) {
             return 0.80;
         }
-        if (minutes < 12L * 60) {      // 6–12 giờ
+        if (minutes < 12L * 60) {
             return 0.60;
         }
-        return 0.40;                   // >= 12 giờ
+        return 0.40;
     }
 
     public static final class Explanations {
@@ -446,7 +433,6 @@ public final class TrendingDealEngine {
                 float realDiscountPct,
                 PriceRecord latest) {
 
-            // Yêu cầu: chỉ giữ 2 dòng thông tin.
             String line1 = String.format(Locale.ROOT,
                     "Giảm khoảng %.0f%% so với giá gốc hiện tại.",
                     realDiscountPct);
