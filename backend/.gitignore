@@ -1,6 +1,9 @@
 HELP.md
 # Mật khẩu DB cục bộ — không commit
 **/application-local.yml
+.env
+.env.*
+!.env.example
 target/
 logs/
 .mvn/wrapper/maven-wrapper.jar
