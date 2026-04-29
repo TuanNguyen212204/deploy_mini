@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -46,6 +47,12 @@ public class GlobalExceptionHandler {
         log.warn("Method not supported: {} (supported={})", ex.getMethod(), ex.getSupportedHttpMethods());
         return build(HttpStatus.METHOD_NOT_ALLOWED,
                 "HTTP method '" + ex.getMethod() + "' không được hỗ trợ tại endpoint này", null);
+    }
+
+    // 404: static resource không tồn tại (vd swagger-ui chưa được bundle)
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException ex) {
+        return build(HttpStatus.NOT_FOUND, ex.getMessage(), null);
     }
 
     // 400: tham số URL/query sai kiểu (ví dụ UUID không hợp lệ)

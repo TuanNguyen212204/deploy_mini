@@ -5,3 +5,7 @@ node_modules/
 **/.env
 **/.env.*
 !**/.env.example
+
+## Playwright artifacts (generated)
+**/test-results/
+**/playwright-report/

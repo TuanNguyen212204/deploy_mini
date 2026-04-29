@@ -44,7 +44,14 @@ public class WishlistService {
         Wishlist wishlist = new Wishlist();
         wishlist.setUserId(userId);
         wishlist.setProductId(productId);
-        return wishlistRepository.save(wishlist);
+        try {
+            return wishlistRepository.save(wishlist);
+        } catch (DataIntegrityViolationException ex) {
+            // Có thể xảy ra race condition giữa exists(...) và save(...) khiến unique constraint bị vi phạm.
+            // Với trường hợp này, coi như "đã tồn tại" để controller trả 409 thay vì 500.
+            log.warn("addToWishlist: wishlist đã tồn tại (userId={}, productId={})", userId, productId);
+            return null;
+        }
     }
 
     /**
